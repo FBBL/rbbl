@@ -5,6 +5,7 @@
 # directories variables
 OBJ_dir=build
 SRC_dir=src
+TEST_dir=test
 INCLUDE_dir=include
 
 # global variables
@@ -16,14 +17,14 @@ LDIR = -L /usr/lib/ -L /usr/local/lib/ -L ./$(OBJ_dir)
 LIBS= -lm
 
 # headers
-_HEADER_files = config.h  utils.h
+_HEADER_files = config.h  utils.h  lwe_instance.h transition_times2_modq.h position_values_2_category_index.h transition_bkw_step_smooth_lms.h lookup_tables.h transition_bkw_step_final.h solve_fwht.h
 HEADER_files = $(patsubst %,$(INCLUDE_dir)/%,$(_HEADER_files))
 # source and objects
-_SRC_files =  utils.c
+_SRC_files =  utils.c lwe_instance.c transition_times2_modq.c position_values_2_category_index.c transition_bkw_step_smooth_lms.c lookup_tables.c transition_bkw_step_final.c solve_fwht.c
 SRC_files = $(patsubst %,$(SRC_dir)/%,$(_SRC_files))
 OBJ_files = $(patsubst %.c,$(OBJ_dir)/%.o,$(_SRC_files))
 
-all: $(OBJ_dir) main
+all: $(OBJ_dir) test
 
 # create build directory
 $(OBJ_dir):
@@ -33,8 +34,8 @@ $(OBJ_dir):
 $(OBJ_dir)/%.o: $(SRC_dir)/%.c
 	$(CC) $(CFLAGS) $< -c $(IDIR) $(LDIR) -o $@ $(LIBS)
 
-main: $(OBJ_files)
-	$(CC) $(CFLAGS) $(SRC_dir)/$@.c -o $(OBJ_dir)/$@ $(IDIR) $(LDIR) $^ $(LIBS) 
+test: $(OBJ_files)
+	$(CC) -fsanitize=address $(CFLAGS) $(TEST_dir)/$@.c -o $(OBJ_dir)/$@ $(IDIR) $(LDIR) $^ $(LIBS) 
 
 .PHONY: clean all
 

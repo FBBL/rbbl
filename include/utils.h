@@ -13,6 +13,10 @@
 
 #include "config.h"
 
-void example (int number);
+void ASSERT(int condition, const char* string, ...);
+
+void time_stamp (const char* string, ...);
+
+int get_seed();
 
 #endif

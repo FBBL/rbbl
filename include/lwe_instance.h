@@ -21,7 +21,7 @@
 #include "config.h"
 
 /* max number of rows */
-#define MAX_N 10
+#define MAX_N 50
 
 typedef struct
 {

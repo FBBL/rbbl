@@ -36,8 +36,8 @@ int main()
 
     lweInstance lwe;
     int n = 10;
-    int q = 11;
-    double alpha = 0.01;
+    int q = 101;
+    double alpha = 0.005;
 
     time_stamp("Precomputation");
     precompute_cdf_table(alpha*q);
@@ -62,8 +62,8 @@ int main()
     {
         bkwStepPar[i].startIndex = i == 0 ? 0 : bkwStepPar[i-1].startIndex + bkwStepPar[i-1].numPositions;
         bkwStepPar[i].numPositions = 2;
-        bkwStepPar[i].p = 2; // test
-        bkwStepPar[i].p1 = 4; // test
+        bkwStepPar[i].p = 11; // test
+        bkwStepPar[i].p1 = 19; // test
         bkwStepPar[i].p2 = bkwStepPar[i].p;
         bkwStepPar[i].prev_p1 = i == 0 ? -1 : bkwStepPar[i-1].p1;
         ASSERT(bkwStepPar[i].p2 != 0, "smooth-LMS p2 parameter not valid");

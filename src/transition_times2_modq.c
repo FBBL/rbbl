@@ -42,28 +42,33 @@ int transition_times2_modq(lweInstance *lwe, bkwStepParameters *bkwStepPar, sort
     sample tmpSample;
     tmpSample.a = calloc(lwe->n, sizeof(u16));
 
-    int count = 0;
-    int category;
+    u64 count = 0, category;
     int n_samples_in_category;
+
+
     while(count < unsortedSamples->n_samples){
-    
+
         category = sample_times2_modq(&tmpSample, &unsortedSamples->list[count], lwe, bkwStepPar);
+
         n_samples_in_category = sortedSamples->list_categories[category].n_samples;
 
         if (n_samples_in_category < sortedSamples->n_samples_per_category && sortedSamples->n_samples < sortedSamples->max_samples)
         {
-            if (category > sortedSamples->n_categories)
+            if (!checkzero((char*)tmpSample.a, sizeof(u16)*lwe->n))
             {
-                printf("ERROR: category %d tot categories %d \n", category, sortedSamples->n_categories );
-                exit(0);
+                if (category > sortedSamples->n_categories)
+                {
+                    printf("ERROR: category %ld tot categories %ld \n", category, sortedSamples->n_categories );
+                    exit(0);
+                }
+                
+                sortedSamples->list_categories[category].list[n_samples_in_category].a = calloc(lwe->n, sizeof(u16));
+                memcpy(sortedSamples->list_categories[category].list[n_samples_in_category].a, tmpSample.a, lwe->n*sizeof(u16));
+                sortedSamples->list_categories[category].list[n_samples_in_category].z = tmpSample.z;
+                sortedSamples->list_categories[category].list[n_samples_in_category].error = tmpSample.error;
+                sortedSamples->list_categories[category].n_samples++;
+                sortedSamples->n_samples++;
             }
-            
-            sortedSamples->list_categories[category].list[n_samples_in_category].a = calloc(lwe->n, sizeof(u16));
-            memcpy(sortedSamples->list_categories[category].list[n_samples_in_category].a, tmpSample.a, lwe->n*sizeof(u16));
-            sortedSamples->list_categories[category].list[n_samples_in_category].z = tmpSample.z;
-            sortedSamples->list_categories[category].list[n_samples_in_category].error = tmpSample.error;
-            sortedSamples->list_categories[category].n_samples++;
-            sortedSamples->n_samples++;
         }
         count++;
     }

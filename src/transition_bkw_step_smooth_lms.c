@@ -21,7 +21,7 @@
 
 #define MIN(X, Y)  ((X) < (Y) ? (X) : (Y))
 
-static int subtractSamples(lweInstance *lwe, sample *outSample, sample *sample1, sample *sample2, bkwStepParameters *dstBkwStepPar)
+static u64 subtractSamples(lweInstance *lwe, sample *outSample, sample *sample1, sample *sample2, bkwStepParameters *dstBkwStepPar)
 {
     int n = lwe->n;
     int q = lwe->q;
@@ -34,12 +34,12 @@ static int subtractSamples(lweInstance *lwe, sample *outSample, sample *sample1,
     outSample->z = diffTable(sample1->z, sample2->z);
     outSample->error = diffTable(sample1->error, sample2->error);
 
-    int index = position_values_2_category_index(lwe, dstBkwStepPar, outSample->a + dstBkwStepPar->startIndex);
+    u64 index = position_values_2_category_index(lwe, dstBkwStepPar, outSample->a + dstBkwStepPar->startIndex);
 
     return index;
 }
 
-static int addSamples(lweInstance *lwe, sample *outSample, sample *sample1, sample *sample2, bkwStepParameters *dstBkwStepPar)
+static u64 addSamples(lweInstance *lwe, sample *outSample, sample *sample1, sample *sample2, bkwStepParameters *dstBkwStepPar)
 {
     int n = lwe->n;
     int q = lwe->q;
@@ -52,7 +52,7 @@ static int addSamples(lweInstance *lwe, sample *outSample, sample *sample1, samp
     outSample->z = sumTable(sample1->z, sample2->z);
     outSample->error = sumTable(sample1->error, sample2->error);
 
-    int index = position_values_2_category_index(lwe, dstBkwStepPar, outSample->a + dstBkwStepPar->startIndex);
+    u64 index = position_values_2_category_index(lwe, dstBkwStepPar, outSample->a + dstBkwStepPar->startIndex);
 
     return index;
 }
@@ -65,8 +65,8 @@ int transition_bkw_step_smooth_lms(lweInstance *lwe, bkwStepParameters *srcBkwSt
     sample tmpSample;
     tmpSample.a = calloc(lwe->n, sizeof(u16));
 
-    int index1, index2, n_samples_in_category;
-    int category;
+    u64 index1, index2, category;
+    int n_samples_in_category;
 
     if (srcSamples->n_categories & 1){
 
@@ -79,23 +79,30 @@ int transition_bkw_step_smooth_lms(lweInstance *lwe, bkwStepParameters *srcBkwSt
                 
                 // add it to the new list
                 n_samples_in_category = dstSamples->list_categories[category].n_samples;
-                if (n_samples_in_category < dstSamples->n_samples_per_category && dstSamples->n_samples < dstSamples->max_samples)
+                if (n_samples_in_category < dstSamples->n_samples_per_category)
                 {
-                    if (category > dstSamples->n_categories)
-                    {
-                        printf("ERROR: category %d tot categories %d \n", category, dstSamples->n_categories );
-                        exit(0);
-                    }
-                    
-                    dstSamples->list_categories[category].list[n_samples_in_category].a = calloc(lwe->n, sizeof(u16));
-                    memcpy(dstSamples->list_categories[category].list[n_samples_in_category].a, tmpSample.a, lwe->n*sizeof(u16));
-                    dstSamples->list_categories[category].list[n_samples_in_category].z = tmpSample.z;
-                    dstSamples->list_categories[category].list[n_samples_in_category].error = tmpSample.error;
-                    dstSamples->list_categories[category].n_samples++;
-                    dstSamples->n_samples++;
+                	if (!checkzero((char*)tmpSample.a, sizeof(u16)*lwe->n))
+                	{
+                		if(dstSamples->n_samples >= dstSamples->max_samples)
+                			goto exit;
+
+	                    if (category > dstSamples->n_categories)
+	                    {
+	                        printf("ERROR: category %ld tot categories %ld \n", category, dstSamples->n_categories );
+	                        exit(0);
+	                    }
+	                    
+	                    dstSamples->list_categories[category].list[n_samples_in_category].a = malloc(lwe->n*sizeof(u16));
+	                    memcpy(dstSamples->list_categories[category].list[n_samples_in_category].a, tmpSample.a, lwe->n*sizeof(u16));
+	                    dstSamples->list_categories[category].list[n_samples_in_category].z = tmpSample.z;
+	                    dstSamples->list_categories[category].list[n_samples_in_category].error = tmpSample.error;
+	                    dstSamples->list_categories[category].n_samples++;
+	                    dstSamples->n_samples++;
+	                }
                 }
             }
         }
+        
         index1 = 1;
         index2 = 2;
     }
@@ -119,18 +126,24 @@ int transition_bkw_step_smooth_lms(lweInstance *lwe, bkwStepParameters *srcBkwSt
                 n_samples_in_category = dstSamples->list_categories[category].n_samples;
                 if (n_samples_in_category < dstSamples->n_samples_per_category && dstSamples->n_samples < dstSamples->max_samples)
                 {
-                    if (category > dstSamples->n_categories)
-                    {
-                        printf("ERROR: category %d tot categories %d \n", category, dstSamples->n_categories );
-                        exit(0);
-                    }
-                    
-                    dstSamples->list_categories[category].list[n_samples_in_category].a = calloc(lwe->n, sizeof(u16));
-                    memcpy(dstSamples->list_categories[category].list[n_samples_in_category].a, tmpSample.a, lwe->n*sizeof(u16));
-                    dstSamples->list_categories[category].list[n_samples_in_category].z = tmpSample.z;
-                    dstSamples->list_categories[category].list[n_samples_in_category].error = tmpSample.error;
-                    dstSamples->list_categories[category].n_samples++;
-                    dstSamples->n_samples++;
+                	if (!checkzero((char*)tmpSample.a, sizeof(u16)*lwe->n))
+                	{
+                		if(dstSamples->n_samples >= dstSamples->max_samples)
+                			goto exit;
+
+	                    if (category > dstSamples->n_categories)
+	                    {
+	                        printf("ERROR: category %ld tot categories %ld \n", category, dstSamples->n_categories );
+	                        exit(0);
+	                    }
+	                    
+	                    dstSamples->list_categories[category].list[n_samples_in_category].a = malloc(lwe->n*sizeof(u16));
+	                    memcpy(dstSamples->list_categories[category].list[n_samples_in_category].a, tmpSample.a, lwe->n*sizeof(u16));
+	                    dstSamples->list_categories[category].list[n_samples_in_category].z = tmpSample.z;
+	                    dstSamples->list_categories[category].list[n_samples_in_category].error = tmpSample.error;
+	                    dstSamples->list_categories[category].n_samples++;
+	                    dstSamples->n_samples++;
+	                }
                 }
             }
         }
@@ -146,18 +159,24 @@ int transition_bkw_step_smooth_lms(lweInstance *lwe, bkwStepParameters *srcBkwSt
                 n_samples_in_category = dstSamples->list_categories[category].n_samples;
                 if (n_samples_in_category < dstSamples->n_samples_per_category && dstSamples->n_samples < dstSamples->max_samples)
                 {
-                    if (category > dstSamples->n_categories)
-                    {
-                        printf("ERROR: category %d tot categories %d \n", category, dstSamples->n_categories );
-                        exit(0);
-                    }
-                    
-                    dstSamples->list_categories[category].list[n_samples_in_category].a = calloc(lwe->n, sizeof(u16));
-                    memcpy(dstSamples->list_categories[category].list[n_samples_in_category].a, tmpSample.a, lwe->n*sizeof(u16));
-                    dstSamples->list_categories[category].list[n_samples_in_category].z = tmpSample.z;
-                    dstSamples->list_categories[category].list[n_samples_in_category].error = tmpSample.error;
-                    dstSamples->list_categories[category].n_samples++;
-                    dstSamples->n_samples++;
+                	if (!checkzero((char*)tmpSample.a, sizeof(u16)*lwe->n))
+                	{
+                		if(dstSamples->n_samples >= dstSamples->max_samples)
+                			goto exit;
+
+	                    if (category > dstSamples->n_categories)
+	                    {
+	                        printf("ERROR: category %ld tot categories %ld \n", category, dstSamples->n_categories );
+	                        exit(0);
+	                    }
+	                    
+	                    dstSamples->list_categories[category].list[n_samples_in_category].a = malloc(lwe->n*sizeof(u16));
+	                    memcpy(dstSamples->list_categories[category].list[n_samples_in_category].a, tmpSample.a, lwe->n*sizeof(u16));
+	                    dstSamples->list_categories[category].list[n_samples_in_category].z = tmpSample.z;
+	                    dstSamples->list_categories[category].list[n_samples_in_category].error = tmpSample.error;
+	                    dstSamples->list_categories[category].n_samples++;
+	                    dstSamples->n_samples++;
+	                }
                 }
             }
         }
@@ -173,25 +192,33 @@ int transition_bkw_step_smooth_lms(lweInstance *lwe, bkwStepParameters *srcBkwSt
                 n_samples_in_category = dstSamples->list_categories[category].n_samples;
                 if (n_samples_in_category < dstSamples->n_samples_per_category && dstSamples->n_samples < dstSamples->max_samples)
                 {
-                    if (category > dstSamples->n_categories)
-                    {
-                        printf("ERROR: category %d tot categories %d \n", category, dstSamples->n_categories );
-                        exit(0);
-                    }
-                    
-                    dstSamples->list_categories[category].list[n_samples_in_category].a = calloc(lwe->n, sizeof(u16));
-                    memcpy(dstSamples->list_categories[category].list[n_samples_in_category].a, tmpSample.a, lwe->n*sizeof(u16));
-                    dstSamples->list_categories[category].list[n_samples_in_category].z = tmpSample.z;
-                    dstSamples->list_categories[category].list[n_samples_in_category].error = tmpSample.error;
-                    dstSamples->list_categories[category].n_samples++;
-                    dstSamples->n_samples++;
+                	if (!checkzero((char*)tmpSample.a, sizeof(u16)*lwe->n))
+                	{
+                		if(dstSamples->n_samples >= dstSamples->max_samples)
+                			goto exit;
+
+	                    if (category > dstSamples->n_categories)
+	                    {
+	                        printf("ERROR: category %ld tot categories %ld \n", category, dstSamples->n_categories );
+	                        exit(0);
+	                    }
+	                    
+	                    dstSamples->list_categories[category].list[n_samples_in_category].a = malloc(lwe->n*sizeof(u16));
+	                    memcpy(dstSamples->list_categories[category].list[n_samples_in_category].a, tmpSample.a, lwe->n*sizeof(u16));
+	                    dstSamples->list_categories[category].list[n_samples_in_category].z = tmpSample.z;
+	                    dstSamples->list_categories[category].list[n_samples_in_category].error = tmpSample.error;
+	                    dstSamples->list_categories[category].n_samples++;
+	                    dstSamples->n_samples++;
+	                }
                 }
             }
         }
+
         index1 += 2;
         index2 += 2;
     }
 
+exit:
 
     free(tmpSample.a);
 

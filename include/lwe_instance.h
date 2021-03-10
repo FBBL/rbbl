@@ -56,10 +56,10 @@ typedef struct
 typedef struct
 {
     category *list_categories;
-    u16 n_categories;
+    u64 n_categories;
     u8 n_samples_per_category;
-    u32 n_samples;
-    u32 max_samples;
+    u64 n_samples;
+    u64 max_samples;
 } sortedSamplesList;
 
 /******************* BKW STEP PARAMETERS ***********************/

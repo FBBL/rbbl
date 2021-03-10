@@ -21,7 +21,7 @@
 
 #define MIN(X, Y)  ((X) < (Y) ? (X) : (Y))
 
-static int subtractSamples(lweInstance *lwe, sample *outSample, sample *sample1, sample *sample2, bkwStepParameters *dstBkwStepPar)
+static u64 subtractSamples(lweInstance *lwe, sample *outSample, sample *sample1, sample *sample2, bkwStepParameters *dstBkwStepPar)
 {
     int n = lwe->n;
     int q = lwe->q;
@@ -61,7 +61,9 @@ int transition_bkw_step_final(lweInstance *lwe, bkwStepParameters *srcBkwStepPar
     sample tmpSample;
     tmpSample.a = calloc(lwe->n, sizeof(u16));
 
-    int index1, index2, count = 0;
+    u64 index1, index2, count = 0;
+
+    dstSamples->n_samples = 0;
 
     if (srcSamples->n_categories & 1){
 
@@ -72,19 +74,24 @@ int transition_bkw_step_final(lweInstance *lwe, bkwStepParameters *srcBkwStepPar
             {
                 subtractSamples(lwe, &tmpSample, &srcSamples->list_categories[0].list[i], &srcSamples->list_categories[0].list[j], dstBkwStepPar);
                 
-                // add it to the new list
-                if (count < tot_final_samples)
+                if (!checkzero((char*)tmpSample.a, sizeof(u16)*lwe->n))
                 {
-                    dstSamples->list[count].a = calloc(lwe->n, sizeof(u16));
-                    memcpy(dstSamples->list[count].a, tmpSample.a, lwe->n*sizeof(u16));
-                    dstSamples->list[count].z = tmpSample.z;
-                    dstSamples->list[count].error = tmpSample.error;
-                    count++;
-                }
-                else
-                    goto exit;
+	                // add it to the new list
+	                if (count < tot_final_samples)
+	                {
+	                    dstSamples->list[count].a = calloc(lwe->n, sizeof(u16));
+	                    memcpy(dstSamples->list[count].a, tmpSample.a, lwe->n*sizeof(u16));
+	                    dstSamples->list[count].z = tmpSample.z;
+	                    dstSamples->list[count].error = tmpSample.error;
+	                    dstSamples->n_samples++;
+                        count++;
+	                }
+	                else
+	                    goto exit;
+	            }
             }
         }
+
         index1 = 1;
         index2 = 2;
     }
@@ -104,17 +111,21 @@ int transition_bkw_step_final(lweInstance *lwe, bkwStepParameters *srcBkwStepPar
             {
                 subtractSamples(lwe, &tmpSample, &srcSamples->list_categories[index1].list[i], &srcSamples->list_categories[index1].list[j], dstBkwStepPar);
                 
-                // add it to the new list
-                if (count < tot_final_samples)
+                if (!checkzero((char*)tmpSample.a, sizeof(u16)*lwe->n))
                 {
-                    dstSamples->list[count].a = calloc(lwe->n, sizeof(u16));
-                    memcpy(dstSamples->list[count].a, tmpSample.a, lwe->n*sizeof(u16));
-                    dstSamples->list[count].z = tmpSample.z;
-                    dstSamples->list[count].error = tmpSample.error;
-                    count++;
-                }
-                else
-                    goto exit;
+	                // add it to the new list
+	                if (count < tot_final_samples)
+	                {
+	                    dstSamples->list[count].a = malloc(lwe->n*sizeof(u16));
+	                    memcpy(dstSamples->list[count].a, tmpSample.a, lwe->n*sizeof(u16));
+	                    dstSamples->list[count].z = tmpSample.z;
+	                    dstSamples->list[count].error = tmpSample.error;
+                        dstSamples->n_samples++;
+	                    count++;
+	                }
+	                else
+	                    goto exit;
+				}
             }
         }
 
@@ -125,17 +136,22 @@ int transition_bkw_step_final(lweInstance *lwe, bkwStepParameters *srcBkwStepPar
             {
                 subtractSamples(lwe, &tmpSample, &srcSamples->list_categories[index2].list[i], &srcSamples->list_categories[index2].list[j], dstBkwStepPar);
                 
-                // add it to the new list
-                if (count < tot_final_samples)
+                if (!checkzero((char*)tmpSample.a, sizeof(u16)*lwe->n))
                 {
-                    dstSamples->list[count].a = calloc(lwe->n, sizeof(u16));
-                    memcpy(dstSamples->list[count].a, tmpSample.a, lwe->n*sizeof(u16));
-                    dstSamples->list[count].z = tmpSample.z;
-                    dstSamples->list[count].error = tmpSample.error;
-                    count++;
-                }
-                else
-                    goto exit;
+
+	                // add it to the new list
+	                if (count < tot_final_samples)
+	                {
+	                    dstSamples->list[count].a = malloc(lwe->n*sizeof(u16));
+	                    memcpy(dstSamples->list[count].a, tmpSample.a, lwe->n*sizeof(u16));
+	                    dstSamples->list[count].z = tmpSample.z;
+	                    dstSamples->list[count].error = tmpSample.error;
+                        dstSamples->n_samples++;
+	                    count++;
+	                }
+	                else
+	                    goto exit;
+				}
             }
         }
 
@@ -146,19 +162,24 @@ int transition_bkw_step_final(lweInstance *lwe, bkwStepParameters *srcBkwStepPar
             {
                 addSamples(lwe, &tmpSample, &srcSamples->list_categories[index1].list[i], &srcSamples->list_categories[index2].list[j], dstBkwStepPar);
                 
-                // add it to the new list
-                if (count < tot_final_samples)
+                if (!checkzero((char*)tmpSample.a, sizeof(u16)*lwe->n))
                 {
-                    dstSamples->list[count].a = calloc(lwe->n, sizeof(u16));
-                    memcpy(dstSamples->list[count].a, tmpSample.a, lwe->n*sizeof(u16));
-                    dstSamples->list[count].z = tmpSample.z;
-                    dstSamples->list[count].error = tmpSample.error;
-                    count++;
-                }
-                else
-                    goto exit;
+	                // add it to the new list
+	                if (count < tot_final_samples)
+	                {
+	                    dstSamples->list[count].a = malloc(lwe->n*sizeof(u16));
+	                    memcpy(dstSamples->list[count].a, tmpSample.a, lwe->n*sizeof(u16));
+	                    dstSamples->list[count].z = tmpSample.z;
+	                    dstSamples->list[count].error = tmpSample.error;
+                        dstSamples->n_samples++;
+	                    count++;
+	                }
+	                else
+	                    goto exit;
+				}
             }
         }
+
         index1 += 2;
         index2 += 2;
     }

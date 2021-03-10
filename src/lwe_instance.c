@@ -190,44 +190,42 @@ void free_sorted_samples(sortedSamplesList *Samples){
 
 u64 num_categories(lweInstance *lwe, bkwStepParameters *bkwStepPar)
 {
-    ASSERT(lwe != NULL, "no parameter lwe");
-    ASSERT(bkwStepPar != NULL, "no parameter bkwStepPar");
     u64 numCategories = 0;
-    u64 c;
-
     int p = bkwStepPar->p;
     int p1 = bkwStepPar->p1;
     int p2 = bkwStepPar->p2;
     ASSERT(lwe->q & 1, "Modulo power of 2 not handled!");
     int q_ = lwe->q%2 == 1 ? (lwe->q+1)/2 : lwe->q/2;
-    c = ((2*q_-1) % p) == 0 ? ((2*q_-1) / p) : ((2*q_-1) / p) + 1;
+    u64 c = ((2*q_-1) % p) == 0 ? ((2*q_-1) / p) : ((2*q_-1) / p) + 1;
     u64 c1 = ((2*q_-1) % p1) == 0 ? ((2*q_-1) / p1) : ((2*q_-1) / p1) + 1;
-    if (bkwStepPar->prev_p1 == -1) { // first step
+    if (bkwStepPar->prev_p1 == -1)   // first step
+    {
         numCategories = 1;
         int lastPosition = MIN(bkwStepPar->numPositions, bkwStepPar->numPositions + 1);
-        for (int i=0; i<lastPosition; i++) {
-            numCategories *= c;
-        }
-        numCategories *= c1;
-    } else if (bkwStepPar->startIndex + bkwStepPar->numPositions == lwe->n) { // last step
-        q_ = bkwStepPar->prev_p1;
-        u64 c2 = ((2*q_-1) % p2) == 0 ? ((2*q_-1) / p2) : ((2*q_-1) / p2) + 1;
-        numCategories = c2;
-        for (int i=1; i<bkwStepPar->numPositions; i++) {
-            numCategories *= c;
-        }
-    } else { // other steps
-        q_ = bkwStepPar->prev_p1;
-        u64 c2 = ((2*q_-1) % p2) == 0 ? ((2*q_-1) / p2) : ((2*q_-1) / p2) + 1;
-        numCategories = c2;
-        int lastPosition = MIN(bkwStepPar->numPositions, bkwStepPar->numPositions + 1);
-        for (int i=1; i<lastPosition; i++) {
+        for (int i=0; i<lastPosition; i++){
             numCategories *= c;
         }
         numCategories *= c1;
     }
-    return numCategories;
- 
+    else if (bkwStepPar->startIndex + bkwStepPar->numPositions == lwe->n)     // last step
+    {
+        q_ = bkwStepPar->prev_p1;
+        u64 c2 = ((2*q_-1) % p2) == 0 ? ((2*q_-1) / p2) : ((2*q_-1) / p2) + 1;
+        numCategories = c2;
+        for (int i=1; i<bkwStepPar->numPositions; i++)
+            numCategories *= c;
+    }
+    else     // other steps
+    {
+        q_ = bkwStepPar->prev_p1;
+        u64 c2 = ((2*q_-1) % p2) == 0 ? ((2*q_-1) / p2) : ((2*q_-1) / p2) + 1;
+        numCategories = c2;
+        int lastPosition = MIN(bkwStepPar->numPositions, bkwStepPar->numPositions + 1);
+        for (int i=1; i<lastPosition; i++)
+            numCategories *= c;
+        numCategories *= c1;
+    }
+    return numCategories; 
 }
 
 
@@ -237,16 +235,14 @@ void allocate_sorted_samples_list(sortedSamplesList *Samples, lweInstance *lwe, 
     // careful with the following setting... could be modified
     Samples->n_categories = num_categories(lwe, bkwStepPar);
     Samples->n_samples_per_category = ceil((double)n_samples/Samples->n_categories)+1;
-    Samples->max_samples = n_samples + ceil(0.1*n_samples);
+    ASSERT(Samples->n_samples_per_category >= 2, "Not enough samples");
+    Samples->max_samples = n_samples + ceil(0.0005*n_samples); // allow some more samples at each step
 
     Samples->list_categories = calloc(Samples->n_categories, sizeof(category));
-    for (int i = 0; i < Samples->n_categories; ++i)
-    {
+    ASSERT(Samples->list_categories != NULL, "Failed allocation");
+    for (int i = 0; i < Samples->n_categories; ++i){
         Samples->list_categories[i].list = calloc(Samples->n_samples_per_category, sizeof(sample));
-        // for (int j = 0; j < Samples->n_samples_per_category; ++j)
-        // {
-        //     Samples->list_categories[i].list[j].a = calloc(lwe->n, sizeof(u16));
-        // }
+        ASSERT(Samples->list_categories[i].list != NULL, "Failed allocation");
     }
     Samples->n_samples = 0;
 }

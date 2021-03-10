@@ -27,16 +27,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define NUM_REDUCTION_STEPS 5
+#define NUM_REDUCTION_STEPS 8
 #define BRUTE_FORCE_POSITIONS 0
+#define ZERO_POSITIONS 11
 
 int main()
 {
-    u64 n_samples = 10000;
+    u64 n_samples = 1000000;
 
     lweInstance lwe;
-    int n = 10;
-    int q = 101;
+    int n = 20;
+    int q = 401;
     double alpha = 0.005;
 
     time_stamp("Precomputation");
@@ -47,31 +48,37 @@ int main()
         return 0;
     }
 
-
     time_stamp("LWE instance created");
 
     samplesList Samples;
     create_lwe_samples(&Samples, &lwe, n_samples);
 
-    time_stamp("Samples allocated");
+    time_stamp("Samples allocated: %ld", n_samples);
+
+ int start_index[NUM_REDUCTION_STEPS] =            {0,    2,   4,   6,   8,  11,  13,  16};
+ int len_step[NUM_REDUCTION_STEPS] =               {2,    2,   2,   2,   2,   2,   3,   4};
+ int p_step[NUM_REDUCTION_STEPS] =                 {1,    1,   1,   1,   1,   3,   6,  10};
+ int p1_step[NUM_REDUCTION_STEPS] =                {75,  28,   9,   3,   1,   8,   6,  62};
+ int prev_p1_step[NUM_REDUCTION_STEPS] =           {-1,  75,  28,   9,   3,  -1,   8,   6};
 
     bkwStepParameters bkwStepPar[NUM_REDUCTION_STEPS];
-
     /* Set steps: smooth LMS */
     for (int i=0; i<NUM_REDUCTION_STEPS; i++)
     {
-        bkwStepPar[i].startIndex = i == 0 ? 0 : bkwStepPar[i-1].startIndex + bkwStepPar[i-1].numPositions;
-        bkwStepPar[i].numPositions = 2;
-        bkwStepPar[i].p = 11; // test
-        bkwStepPar[i].p1 = 19; // test
+        bkwStepPar[i].startIndex = start_index[i];// i == 0 ? 0 : bkwStepPar[i-1].startIndex + bkwStepPar[i-1].numPositions;
+        bkwStepPar[i].numPositions = len_step[i];//2;
+        bkwStepPar[i].p = p_step[i];//3; // test
+        bkwStepPar[i].p1 = p1_step[i]; //19; // test
         bkwStepPar[i].p2 = bkwStepPar[i].p;
-        bkwStepPar[i].prev_p1 = i == 0 ? -1 : bkwStepPar[i-1].p1;
+        bkwStepPar[i].prev_p1 = prev_p1_step[i];// i ==  0 ? -1 : bkwStepPar[i-1].p1;
         ASSERT(bkwStepPar[i].p2 != 0, "smooth-LMS p2 parameter not valid");
+        // printf("step %d categories %ld\n", i, num_categories(&lwe, &bkwStepPar[i]));
     }
+    // exit(0);
 
     int bruteForcePositions = BRUTE_FORCE_POSITIONS;
-    int fwht_positions = lwe.n - bruteForcePositions;
-    int zero_positions = 0;
+    int fwht_positions = lwe.n - ZERO_POSITIONS;
+    int zero_positions = ZERO_POSITIONS;
 
     u8 binary_solution[fwht_positions];
     short bf_solution[bruteForcePositions];
@@ -86,6 +93,7 @@ int main()
     /* multiply times 2 mod q and sort (unsorted) samples */
     time_stamp("Multiply samples times 2 modulo q");
     int ret = transition_times2_modq(&lwe, &bkwStepPar[0], &sortedSamples1, &Samples);
+    time_stamp("Number of samples: %d - %d samples per category", sortedSamples1.n_samples, sortedSamples1.n_samples_per_category);
 
     // free original samples - save up memory
     free_samples(&Samples);
@@ -105,7 +113,7 @@ int main()
         free_sorted_samples(tmpSamples);
         srcSamples = dstSamples;
         dstSamples = tmpSamples;
-        time_stamp("Number of samples: %d", srcSamples->n_samples);
+        time_stamp("Number of samples: %d - %d samples per category", srcSamples->n_samples, srcSamples->n_samples_per_category);
     }
 
     /* perform last reduction step */
@@ -120,15 +128,15 @@ int main()
     free_sorted_samples(tmpSamples);
 
     /* compute binary secret */
-    u8 real_binary_secret[lwe.n];
+    u8 original_binary_secret[lwe.n];
     // printf("(");
     for (int i = 0; i < lwe.n; ++i)
     {
         // printf("%d ", lwe.s[i]);
         if (lwe.s[i] < q/2)
-            real_binary_secret[i] = lwe.s[i] % 2;
+            original_binary_secret[i] = lwe.s[i] % 2;
         else
-            real_binary_secret[i] = (lwe.s[i]+1) % 2;
+            original_binary_secret[i] = (lwe.s[i]+1) % 2;
     }
     // printf(")\n");
 
@@ -146,38 +154,15 @@ int main()
     free_samples(&Samples);
 
 
-    printf("Binary Solution Found (");
-    for(int i = 0; i<lwe.n-bruteForcePositions; i++)
-        printf("%hhu ",binary_solution[i]);
-    printf("- ");
-    for(int i = 0; i<bruteForcePositions; i++)
-        printf("%hi ",bf_solution[i]);
-    printf(")\n");
+    printf("\nFound Solution   \n");
+    for(int i = 0; i<fwht_positions; i++)
+        printf("%d ",binary_solution[i]);
+    printf("\n");
 
-    printf("Real Binary Solution  (");
-    for(int i = 0; i<lwe.n-bruteForcePositions; i++)
-        printf("%hhu ",real_binary_secret[i]);
-    printf("- ");
-    for(int i = 0; i<bruteForcePositions; i++)
-        printf("%hi ",lwe.s[i+zero_positions+fwht_positions]);
-    printf(")\n");
-
-    for(int i = 0; i<lwe.n-bruteForcePositions; i++)
-    {
-        if (binary_solution[i] != real_binary_secret[i])
-        {
-            printf("WRONG retrieved solution!\n");
-            return 1;
-        }
-    }
-    for(int i = 0; i<bruteForcePositions; i++)
-    {
-        if (bf_solution[i] != lwe.s[i+zero_positions+fwht_positions])
-        {
-            printf("WRONG retrieved solution!\n");
-            return 1;
-        }
-    }
+    printf("\nOriginal Solution\n");
+    for(int i = zero_positions; i<zero_positions+fwht_positions; i++)
+        printf("%d ",original_binary_secret[i]);
+    printf("\n\n");
 
     time_stamp("Terminate program");
 

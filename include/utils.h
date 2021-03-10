@@ -28,4 +28,6 @@ void time_stamp (const char* string, ...);
 
 int get_seed();
 
+int checkzero(char *string, int length);
+
 #endif

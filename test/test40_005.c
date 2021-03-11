@@ -27,13 +27,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define NUM_REDUCTION_STEPS 13
+#define NUM_REDUCTION_STEPS 12
 #define BRUTE_FORCE_POSITIONS 0
-#define ZERO_POSITIONS 18
+#define ZERO_POSITIONS 16
 
 int main()
 {
-    u64 n_samples = 50000000;
+    u64 n_samples = 100000000;
 
     lweInstance lwe;
     int n = 40;
@@ -48,11 +48,17 @@ int main()
         return 0;
     }
 
-   int start_index[NUM_REDUCTION_STEPS] =            {0,     2,    4,   6,   9,  11,  13,  15,  18,  21,  25,   29,   34};
-   int len_step[NUM_REDUCTION_STEPS] =               {2,     2,    2,   2,   2,   2,   2,   2,   3,   4,   4,    5,    6};
-   int p_step[NUM_REDUCTION_STEPS] =                 {1,     1,    1,   1,   1,   1,   1,   1,  17,  24,  34,   46,   66};
-   int p1_step[NUM_REDUCTION_STEPS] =                {165,  30,    6,   1, 165,  30,   6,   1,  46,  66,  23,   81,  1601};
-   int prev_p1_step[NUM_REDUCTION_STEPS] =           {-1,  165,   30,   6,  -1, 165,  30,   6,  -1,  46,  66,   23,   81};
+   int start_index[NUM_REDUCTION_STEPS] =            {0,     2,    4,   6,   9,  11,  13,  16,  19,  24,  29,   34};
+   int len_step[NUM_REDUCTION_STEPS] =               {2,     2,    2,   3,   2,   2,   2,   4,   4,   5,   5,    6};
+   int p_step[NUM_REDUCTION_STEPS] =                 {1,     1,    1,   1,   1,   1,   1,  14,  20,  35,  53,   84};
+   int p1_step[NUM_REDUCTION_STEPS] =                {110,  15,    2, 400,  54,   8,   1,  55, 104, 800, 800,  129};
+   int prev_p1_step[NUM_REDUCTION_STEPS] =           {-1,  110,   15,   2, 400,  54,   8,   1,  55, 104, 800,  800};
+
+   // int start_index[NUM_REDUCTION_STEPS] =            {0,     2,    4,   6,   9,  11,  13,  15,  18,  21,  25,   29,   34};
+   // int len_step[NUM_REDUCTION_STEPS] =               {2,     2,    2,   2,   2,   2,   2,   2,   3,   4,   4,    5,    6};
+   // int p_step[NUM_REDUCTION_STEPS] =                 {1,     1,    1,   1,   1,   1,   1,   1,  17,  24,  34,   46,   66};
+   // int p1_step[NUM_REDUCTION_STEPS] =                {165,  30,    6,   1, 165,  30,   6,   1,  46,  66,  23,   81,  1601};
+   // int prev_p1_step[NUM_REDUCTION_STEPS] =           {-1,  165,   30,   6,  -1, 165,  30,   6,  -1,  46,  66,   23,   81};
 
     bkwStepParameters bkwStepPar[NUM_REDUCTION_STEPS];
     /* Set steps: smooth LMS */
@@ -65,10 +71,16 @@ int main()
         bkwStepPar[i].p2 = bkwStepPar[i].p;
         bkwStepPar[i].prev_p1 = prev_p1_step[i];//i == 0 ? -1 : bkwStepPar[i-1].p1;
         ASSERT(bkwStepPar[i].p2 != 0, "smooth-LMS p2 parameter not valid");
-        printf("step %d categories %ld\n", i, num_categories(&lwe, &bkwStepPar[i]));
+        printf("step %d categories %lu\n", i, num_categories(&lwe, &bkwStepPar[i]));
     }
 
-    // exit(0);
+
+    u16 pn[] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,694,15,1593,4,1590,1586,0,3,324,729,830,794,783,330,1250,1270,1145,1454,41,389,288,1026,704,675};
+
+    u64 index = position_values_2_category_index(&lwe, &bkwStepPar[9], pn + bkwStepPar[9].startIndex);
+    printf("category %lu over %lu \n", index, num_categories(&lwe, &bkwStepPar[9]));
+
+    exit(0);
 
     int bruteForcePositions = BRUTE_FORCE_POSITIONS;
     int fwht_positions = lwe.n - ZERO_POSITIONS;

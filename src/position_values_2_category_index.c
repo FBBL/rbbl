@@ -31,7 +31,7 @@ int is_smooth_lms_singleton(u64 categoryIndex, u64 numCategories)
 
 // n is the length, t is a list containing the indices, p is a list containing the reduction factor for each position.
 // efficiency may be improved with a look-up table
-static u64 positionValuesToCategoryGeneralized(int n, short *t, int *c)
+static u64 positionValuesToCategoryGeneralized(int n, int *t, int *c)
 {
 
     u64 index;
@@ -65,7 +65,7 @@ static u64 positionValuesToCategoryGeneralized(int n, short *t, int *c)
             else
             {
                 index = 2*(c[n-1]-t[n-1])-1;
-                short nt[n-1];
+                int nt[n-1];
                 for (int i = 0; i<n-1; i++)
                 {
                     if (c[i] & 1)   /* Category i is odd */
@@ -99,7 +99,7 @@ static u64 positionValuesToCategoryGeneralized(int n, short *t, int *c)
         }
         else     // other recursive cases
         {
-            if (t[n-1] < (c[n-1]/2))
+            if (2*t[n-1] < (c[n-1]))
             {
                 index = 2*t[n-1];
                 for (int i = 0; i<n-1; i++)
@@ -109,7 +109,7 @@ static u64 positionValuesToCategoryGeneralized(int n, short *t, int *c)
             else
             {
                 index = 2*(c[n-1]-t[n-1]-1);
-                short nt[n-1];
+                int nt[n-1];
                 for (int i = 0; i<n-1; i++)
                 {
                     if (c[i] & 1)   /* Category i is odd */
@@ -132,7 +132,7 @@ static u64 positionValuesToCategoryGeneralized(int n, short *t, int *c)
 
 /* makes an LMS mapping of pi using q and p as moduli - version for smooth LMS */
 /* here q_ must be ceil(lwe.q/2) if the position is not already reduced, otherwise it must be 2*p from previous step */
-short positionSmoothLMSMap(short pn, int q, int q_, int p, int c)
+short positionSmoothLMSMap(u16 pn, u16 q, u16 q_, u16 p, int c)
 {
 
     int Delta;
@@ -157,16 +157,16 @@ short positionSmoothLMSMap(short pn, int q, int q_, int p, int c)
 
 u64 position_values_2_category_index(lweInstance *lwe, bkwStepParameters *dstBkwStepPar, u16 *pn)
 {
-    int q = lwe->q;
-    int Ni = dstBkwStepPar->numPositions;
-    short p = dstBkwStepPar->p;
-    short p1 = dstBkwStepPar->p1;
-    short p2;
+    u16 q = lwe->q;
+    u16 Ni = dstBkwStepPar->numPositions;
+    u16 p = dstBkwStepPar->p;
+    u16 p1 = dstBkwStepPar->p1;
+    u16 p2;
     u64 index_cat = 0;
 
-    short t[MAX_SMOOTH_LMS_POSITIONS+1];
+    int t[MAX_SMOOTH_LMS_POSITIONS+1];
     int c[MAX_SMOOTH_LMS_POSITIONS+1];
-    int q_;
+    u16 q_;
 
     /* Differentiate the first step for general steps */
     if (dstBkwStepPar->prev_p1 == -1)   // first step
@@ -179,11 +179,6 @@ u64 position_values_2_category_index(lweInstance *lwe, bkwStepParameters *dstBkw
         }
         c[Ni] = ((2*q_-1) % p1) == 0 ? ((2*q_-1) / p1) : ((2*q_-1) / p1) + 1;
         t[Ni] = positionSmoothLMSMap(pn[Ni], q, q_, p1, c[Ni]);
-            // printf("pn %d %d %d\n", pn[0], pn[1], pn[2] );
-            // printf("t %d %d %d\n", t[0], t[1], t[2] );
-            // printf("c %d %d %d\n", c[0], c[1], c[2] );
-
-
         index_cat = positionValuesToCategoryGeneralized(Ni+1, t, c);
     }
     else if (dstBkwStepPar->startIndex + Ni == lwe->n)     // last step

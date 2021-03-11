@@ -27,17 +27,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define NUM_REDUCTION_STEPS 8
+#define NUM_REDUCTION_STEPS 9
 #define BRUTE_FORCE_POSITIONS 0
-#define ZERO_POSITIONS 11
+#define ZERO_POSITIONS 16
 
 int main()
 {
-    u64 n_samples = 1000000;
+    u64 n_samples = 60000000;
 
     lweInstance lwe;
     int n = 20;
-    int q = 401;
+    int q = 1601;
     double alpha = 0.005;
 
     time_stamp("Precomputation");
@@ -48,18 +48,17 @@ int main()
         return 0;
     }
 
-    time_stamp("LWE instance created");
+   int start_index[NUM_REDUCTION_STEPS] =            {0,     2,    4,   6,   9,  11,  13,  16,   18};
+   int len_step[NUM_REDUCTION_STEPS] =               {2,     2,    2,   3,   2,   2,   2,   2,    2};
+   int p_step[NUM_REDUCTION_STEPS] =                 {1,     1,    1,   1,   1,   1,   1,  14,   28};
+   int p1_step[NUM_REDUCTION_STEPS] =                {110,  15,    2, 400,  54,   8,   1,  55, 1601};
+   int prev_p1_step[NUM_REDUCTION_STEPS] =           {-1,  110,   15,   2, 400,  54,   8,  -1,   55};
 
-    samplesList Samples;
-    create_lwe_samples(&Samples, &lwe, n_samples);
-
-    time_stamp("Samples allocated: %ld", n_samples);
-
- int start_index[NUM_REDUCTION_STEPS] =            {0,    2,   4,   6,   8,  11,  13,  16};
- int len_step[NUM_REDUCTION_STEPS] =               {2,    2,   2,   2,   2,   2,   3,   4};
- int p_step[NUM_REDUCTION_STEPS] =                 {1,    1,   1,   1,   1,   3,   6,  10};
- int p1_step[NUM_REDUCTION_STEPS] =                {75,  28,   9,   3,   1,   8,   6,  62};
- int prev_p1_step[NUM_REDUCTION_STEPS] =           {-1,  75,  28,   9,   3,  -1,   8,   6};
+   // int start_index[NUM_REDUCTION_STEPS] =            {0,     2,    4,   6,   9,  11,  13,  15,  18,  21,  25,   29,   34};
+   // int len_step[NUM_REDUCTION_STEPS] =               {2,     2,    2,   2,   2,   2,   2,   2,   3,   4,   4,    5,    6};
+   // int p_step[NUM_REDUCTION_STEPS] =                 {1,     1,    1,   1,   1,   1,   1,   1,  17,  24,  34,   46,   66};
+   // int p1_step[NUM_REDUCTION_STEPS] =                {165,  30,    6,   1, 165,  30,   6,   1,  46,  66,  23,   81,  1601};
+   // int prev_p1_step[NUM_REDUCTION_STEPS] =           {-1,  165,   30,   6,  -1, 165,  30,   6,  -1,  46,  66,   23,   81};
 
     bkwStepParameters bkwStepPar[NUM_REDUCTION_STEPS];
     /* Set steps: smooth LMS */
@@ -70,10 +69,11 @@ int main()
         bkwStepPar[i].p = p_step[i];//3; // test
         bkwStepPar[i].p1 = p1_step[i]; //19; // test
         bkwStepPar[i].p2 = bkwStepPar[i].p;
-        bkwStepPar[i].prev_p1 = prev_p1_step[i];// i ==  0 ? -1 : bkwStepPar[i-1].p1;
+        bkwStepPar[i].prev_p1 = prev_p1_step[i];//i == 0 ? -1 : bkwStepPar[i-1].p1;
         ASSERT(bkwStepPar[i].p2 != 0, "smooth-LMS p2 parameter not valid");
-        // printf("step %d categories %ld\n", i, num_categories(&lwe, &bkwStepPar[i]));
+        printf("step %d categories %ld\n", i, num_categories(&lwe, &bkwStepPar[i]));
     }
+
     // exit(0);
 
     int bruteForcePositions = BRUTE_FORCE_POSITIONS;
@@ -82,6 +82,14 @@ int main()
 
     u8 binary_solution[fwht_positions];
     short bf_solution[bruteForcePositions];
+
+    time_stamp("LWE instance created");
+
+    samplesList Samples;
+    create_lwe_samples(&Samples, &lwe, n_samples);
+
+    time_stamp("Samples allocated");
+
 
     time_stamp("Start reduction phase");
 
@@ -142,6 +150,15 @@ int main()
 
     freeSumAndDiffTables();
 
+    // for (int i = 0; i < 5; ++i)
+    // {
+    //     printf("(");
+    //     for (int j = 0; j < n; j++)
+    //     {
+    //         printf("%d ", Samples.list[i].a[j]);
+    //     }printf(")\n");
+    // }
+
     /* Solving phase - using Fast Walsh Hadamard Tranform */
 
     time_stamp("Apply Fast Walsh Hadamard Tranform");
@@ -162,7 +179,7 @@ int main()
     printf("\nOriginal Solution\n");
     for(int i = zero_positions; i<zero_positions+fwht_positions; i++)
         printf("%d ",original_binary_secret[i]);
-    printf("\n\n");
+    printf("\n");
 
     time_stamp("Terminate program");
 

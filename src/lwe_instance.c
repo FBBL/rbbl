@@ -234,9 +234,9 @@ void allocate_sorted_samples_list(sortedSamplesList *Samples, lweInstance *lwe, 
 
     // careful with the following setting... could be modified
     Samples->n_categories = num_categories(lwe, bkwStepPar);
-    Samples->n_samples_per_category = ceil((double)n_samples/Samples->n_categories)+1;
+    Samples->n_samples_per_category = MIN(ceil((double)n_samples/Samples->n_categories)+1, 20); // no need to store too many samples for each category
     ASSERT(Samples->n_samples_per_category >= 2, "Not enough samples");
-    Samples->max_samples = n_samples + ceil(0.0005*n_samples); // allow some more samples at each step
+    Samples->max_samples = n_samples + ceil(0.01*n_samples); // allow some more samples at each step
 
     Samples->list_categories = calloc(Samples->n_categories, sizeof(category));
     ASSERT(Samples->list_categories != NULL, "Failed allocation");

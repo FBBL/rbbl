@@ -17,10 +17,12 @@
 #ifndef LOOKUP_TABLES_H
 #define LOOKUP_TABLES_H
 
+#include "config.h"
+
 int createSumAndDiffTables(int q);
 void freeSumAndDiffTables(void);
 
-int sumTable(int, int);
-int diffTable(int, int);
+u16 sumTable(u16, u16);
+u16 diffTable(u16, u16);
 
 #endif

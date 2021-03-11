@@ -17,9 +17,9 @@
 #include "lookup_tables.h"
 #include "utils.h"
 
-int tableQ = 0;
-int **sum_table = NULL;
-int **diff_table = NULL;
+u16 tableQ = 0;
+u16 **sum_table = NULL;
+u16 **diff_table = NULL;
 
 int createSumAndDiffTables(int q)
 {
@@ -28,21 +28,21 @@ int createSumAndDiffTables(int q)
         return 0; /* tables already created */
     }
     tableQ = q;
-    sum_table = malloc(q * sizeof(int*));
+    sum_table = malloc(q * sizeof(u16*));
     ASSERT(sum_table != NULL, "allocation failed");
-    diff_table = malloc(q * sizeof(int*));
+    diff_table = malloc(q * sizeof(u16*));
     ASSERT(diff_table != NULL, "allocation failed");
     for (int i=0; i<q; i++)
     {
-        sum_table[i] = malloc(q * sizeof(int));
+        sum_table[i] = malloc(q * sizeof(u16));
         ASSERT(sum_table[i] != NULL, "allocation failed");
-        diff_table[i] = malloc(q * sizeof(int));
+        diff_table[i] = malloc(q * sizeof(u16));
         ASSERT(diff_table[i] != NULL, "allocation failed");
         for (int j=0; j<q; j++)
         {
-            sum_table[i][j] = (i + j) % q;
+            sum_table[i][j] = (u16) (i + j) % q;
             ASSERT(sum_table[i][j] < q, "unexpected value!");
-            diff_table[i][j] = (i + q - j) % q;
+            diff_table[i][j] = (u16) (i + q - j) % q;
             ASSERT(diff_table[i][j] < q, "unexpected value!");
         }
     }
@@ -67,13 +67,13 @@ void freeSumAndDiffTables(void)
     tableQ = 0;
 }
 
-int sumTable(int a, int b)
+u16 sumTable(u16 a, u16 b)
 {
     ASSERT(sum_table != NULL, "sum_table not initialized");
     return sum_table[a][b];
 }
 
-int diffTable(int a, int b)
+u16 diffTable(u16 a, u16 b)
 {
     ASSERT(diff_table != NULL, "diff_table not initialized");
     return diff_table[a][b];

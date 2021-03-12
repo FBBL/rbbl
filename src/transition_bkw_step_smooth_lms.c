@@ -124,9 +124,13 @@ int transition_bkw_step_smooth_lms(lweInstance *lwe, bkwStepParameters *srcBkwSt
         index2 = 1;
     }
 
+    int count = 0; // sample smearing
+
     /* process samples with LF2 method */
     while (index2 < srcSamples->n_categories && dstSamples->n_samples < dstSamples->max_samples)
     {
+        count = 0;
+
         // process single category
         for (int i = 0; i < srcSamples->list_categories[index1].n_samples; i++)
         {
@@ -165,6 +169,7 @@ int transition_bkw_step_smooth_lms(lweInstance *lwe, bkwStepParameters *srcBkwSt
 	                    dstSamples->list_categories[category].list[n_samples_in_category].error = tmpSample.error;
 	                    dstSamples->list_categories[category].n_samples++;
 	                    dstSamples->n_samples++;
+                        count++;
 	                    if (dstSamples->n_samples == dstSamples->max_samples)
 		                    goto exit;
 	                }
@@ -210,6 +215,7 @@ int transition_bkw_step_smooth_lms(lweInstance *lwe, bkwStepParameters *srcBkwSt
 	                    dstSamples->list_categories[category].list[n_samples_in_category].error = tmpSample.error;
 	                    dstSamples->list_categories[category].n_samples++;
 	                    dstSamples->n_samples++;
+                        count++;
 	                    if (dstSamples->n_samples == dstSamples->max_samples)
 		                    goto exit;	                    
 	                }
@@ -254,6 +260,7 @@ int transition_bkw_step_smooth_lms(lweInstance *lwe, bkwStepParameters *srcBkwSt
 	                    dstSamples->list_categories[category].list[n_samples_in_category].error = tmpSample.error;
 	                    dstSamples->list_categories[category].n_samples++;
 	                    dstSamples->n_samples++;
+                        count++;
 	                    if (dstSamples->n_samples == dstSamples->max_samples)
 		                    goto exit;
 	                }

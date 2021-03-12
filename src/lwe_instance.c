@@ -185,6 +185,8 @@ void free_sorted_samples(sortedSamplesList *Samples){
 
 /*************** BKW STEP PARAMETERS ******************/
 
+#define MIN(a,b) (((a)<(b))?(a):(b))
+
 u64 num_categories(lweInstance *lwe, bkwStepParameters *bkwStepPar)
 {
     u64 numCategories = 0;
@@ -233,7 +235,7 @@ void allocate_sorted_samples_list(sortedSamplesList *Samples, lweInstance *lwe, 
     Samples->n_categories = num_categories(lwe, bkwStepPar);
     Samples->n_samples_per_category = ceil((double)n_samples/Samples->n_categories)+1; // no need to store too many samples for each category
     ASSERT(Samples->n_samples_per_category >= 2, "Not enough samples");
-    Samples->max_samples = n_samples + ceil(0.01*n_samples); // allow some more samples at each step
+    Samples->max_samples = n_samples + ceil(0.05*n_samples); // allow some more samples at each step
 
     Samples->list_categories = calloc(Samples->n_categories, sizeof(category));
     ASSERT(Samples->list_categories != NULL, "Failed allocation");

@@ -40,6 +40,8 @@ int main()
     int q = 401;
     double alpha = 0.005;
 
+    time_stamp("LWE parameters: n: %d, q: %d, sigma: %lf*q. Initial samples: %lu", n, q, alpha, n_samples);
+
     time_stamp("Precomputation");
     precompute_cdf_table(alpha*q);
     lwe_init(&lwe, n, q, alpha);

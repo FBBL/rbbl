@@ -169,12 +169,12 @@ int nextBruteForceGuess(int ratio, int *BFguess, int lenght)
  */
 int solve_fwht_search_bruteforce(u8 *binary_solution, short *bf_solution, int zero_positions, int bf_positions, int fwht_positions, samplesList *reducedSamples, lweInstance *lwe)
 {
-    int n = lwe->n;
     int q = lwe->q;
+    int n = lwe->n;
 
     ASSERT(1 <= fwht_positions && fwht_positions <= MAX_FWHT, "The number of positions for fwht is not supported in this implementation!\n");
     ASSERT(1 <= bf_positions && bf_positions <= MAX_BRUTE_FORCE, "The number of positions for bruteforce guessing is not supported in this implementation!\n");
-    ASSERT(fwht_positions + bf_positions + zero_positions == n, "The number of positions for bruteforce and fwht is != n - %d + %d + %d >= %d !\n", fwht_positions, bf_positions, zero_positions, n);
+    ASSERT(fwht_positions + bf_positions + zero_positions == n, "The number of positions for bruteforce and fwht is => n!\n");
 
     /* create initial list */
     u64 N = (u64)1<<fwht_positions; // N = 2^fwht_positions
@@ -192,7 +192,9 @@ int solve_fwht_search_bruteforce(u8 *binary_solution, short *bf_solution, int ze
 
     u8 bin_guess[fwht_positions];
 
-    int ratio = round(lwe->alpha*lwe->q*4); // 2*3*standard_deviation is the interval length where to search
+    time_stamp("Start FWHT: brute force %d positions, guess %d positions\n", bf_positions, fwht_positions);
+
+    int ratio = round(lwe->sigma*4); // 2*3*standard_deviation is the interval length where to search
     int BFguess[bf_positions];
     int tmp_si;
 
@@ -204,21 +206,25 @@ int solve_fwht_search_bruteforce(u8 *binary_solution, short *bf_solution, int ze
     {
         memset(list, 0, N*sizeof(long));
 
+        // process all samples
         for (int i = 0; i < reducedSamples->n_samples; ++i)
         {
+
             intsample = sample_to_int(reducedSamples->list[i].a + zero_positions, fwht_positions, q);
-            z = reducedSamples->list[i].z > (q-1)/2 ? (reducedSamples->list[i].z -q) : (reducedSamples->list[i].z);
-           // update z with the bruteforce-guessed positions
+            z = reducedSamples->list[i].z;
+            // update z with the bruteforce-guessed positions
             for(int j = 0; j<bf_positions; j++)
             {
                 if(BFguess[j] < 0)
                     tmp_si = BFguess[j]+q;
                 else
                     tmp_si = BFguess[j];
-                z = (z - (reducedSamples->list[i].a[zero_positions+fwht_positions+j]*tmp_si)%q );
+                z = (z - ( reducedSamples->list[i].a[zero_positions+fwht_positions+j]*tmp_si)%q );
                 if (z < 0)
                     z += q;
             }
+            z = z > (q-1)/2 ? z -q : z;
+            intsample = sample_to_int(reducedSamples->list[i].a+zero_positions, fwht_positions, q);
             lsb_z = z%2 == 0 ? 0 : 1;
 
             if (lsb_z == 0)
@@ -235,6 +241,7 @@ int solve_fwht_search_bruteforce(u8 *binary_solution, short *bf_solution, int ze
         max = 0;
         for (u64 i = 0; i<N; i++)
         {
+
             if (max < labs(list[i]))
             {
                 max = labs(list[i]);
@@ -244,17 +251,15 @@ int solve_fwht_search_bruteforce(u8 *binary_solution, short *bf_solution, int ze
 
         // Convert solution into binary
         int_to_bin(max_pos, bin_guess, fwht_positions);
-
-// #ifdef PRINT_INTERMEDIATE_SOLUTIONS_BRUTEFORCE
-        printf("Index found %ld - max %f \n(",max_pos, max);
+#ifdef PRINT_INTERMEDIATE
+        time_stamp("Index found %ld - max %f \n(",max_pos, max);
         for(int j = 0; j<bf_positions; j++)
             printf("%d ", BFguess[j]);
         printf(") - (");
         for(int j = 0; j<fwht_positions; j++)
             printf("%hu ", bin_guess[j]);
         printf(")\n");
-// #endif
-
+#endif
         if(max > global_max)
         {
             global_max = max;

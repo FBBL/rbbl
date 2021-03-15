@@ -32,7 +32,7 @@ static u64 subtractSamples(lweInstance *lwe, sample *outSample, sample *sample1,
     for (int i=0; i < n; i++)
         outSample->a[i] = diffTable(sample1->a[i], sample2->a[i]);
     outSample->z = diffTable(sample1->z, sample2->z);
-    outSample->error = diffTable(sample1->error, sample2->error);
+    // outSample->error = diffTable(sample1->error, sample2->error);
 
     u64 index = position_values_2_category_index(lwe, dstBkwStepPar, outSample->a + dstBkwStepPar->startIndex);
 
@@ -50,7 +50,7 @@ static u64 addSamples(lweInstance *lwe, sample *outSample, sample *sample1, samp
     for (int i=0; i < n; i++)
         outSample->a[i] = sumTable(sample1->a[i], sample2->a[i]);
     outSample->z = sumTable(sample1->z, sample2->z);
-    outSample->error = sumTable(sample1->error, sample2->error);
+    // outSample->error = sumTable(sample1->error, sample2->error);
 
     u64 index = position_values_2_category_index(lwe, dstBkwStepPar, outSample->a + dstBkwStepPar->startIndex);
 
@@ -67,6 +67,8 @@ int transition_bkw_step_smooth_lms(lweInstance *lwe, bkwStepParameters *srcBkwSt
 
     u64 index1, index2, category;
     int n_samples_in_category;
+
+    u64 discarded = 0;
 
     if (srcSamples->n_categories & 1)
     {
@@ -105,13 +107,15 @@ int transition_bkw_step_smooth_lms(lweInstance *lwe, bkwStepParameters *srcBkwSt
 	                    dstSamples->list_categories[category].list[n_samples_in_category].a = malloc(lwe->n*sizeof(u16));
 	                    memcpy(dstSamples->list_categories[category].list[n_samples_in_category].a, tmpSample.a, lwe->n*sizeof(u16));
 	                    dstSamples->list_categories[category].list[n_samples_in_category].z = tmpSample.z;
-	                    dstSamples->list_categories[category].list[n_samples_in_category].error = tmpSample.error;
+	                    // dstSamples->list_categories[category].list[n_samples_in_category].error = tmpSample.error;
 	                    dstSamples->list_categories[category].n_samples++;
 	                    dstSamples->n_samples++;
 	                    if (dstSamples->n_samples == dstSamples->max_samples)
 		                    goto exit;
 	                }
                 }
+                else
+                    discarded++;
             }
         }
         
@@ -124,13 +128,9 @@ int transition_bkw_step_smooth_lms(lweInstance *lwe, bkwStepParameters *srcBkwSt
         index2 = 1;
     }
 
-    int count = 0; // sample smearing
-
     /* process samples with LF2 method */
     while (index2 < srcSamples->n_categories && dstSamples->n_samples < dstSamples->max_samples)
     {
-        count = 0;
-
         // process single category
         for (int i = 0; i < srcSamples->list_categories[index1].n_samples; i++)
         {
@@ -166,14 +166,16 @@ int transition_bkw_step_smooth_lms(lweInstance *lwe, bkwStepParameters *srcBkwSt
 	                    dstSamples->list_categories[category].list[n_samples_in_category].a = malloc(lwe->n*sizeof(u16));
 	                    memcpy(dstSamples->list_categories[category].list[n_samples_in_category].a, tmpSample.a, lwe->n*sizeof(u16));
 	                    dstSamples->list_categories[category].list[n_samples_in_category].z = tmpSample.z;
-	                    dstSamples->list_categories[category].list[n_samples_in_category].error = tmpSample.error;
+	                    // dstSamples->list_categories[category].list[n_samples_in_category].error = tmpSample.error;
 	                    dstSamples->list_categories[category].n_samples++;
 	                    dstSamples->n_samples++;
-                        count++;
+
 	                    if (dstSamples->n_samples == dstSamples->max_samples)
 		                    goto exit;
 	                }
                 }
+                else
+                    discarded++;
             }
         }
 
@@ -212,14 +214,16 @@ int transition_bkw_step_smooth_lms(lweInstance *lwe, bkwStepParameters *srcBkwSt
 	                    dstSamples->list_categories[category].list[n_samples_in_category].a = malloc(lwe->n*sizeof(u16));
 	                    memcpy(dstSamples->list_categories[category].list[n_samples_in_category].a, tmpSample.a, lwe->n*sizeof(u16));
 	                    dstSamples->list_categories[category].list[n_samples_in_category].z = tmpSample.z;
-	                    dstSamples->list_categories[category].list[n_samples_in_category].error = tmpSample.error;
+	                    // dstSamples->list_categories[category].list[n_samples_in_category].error = tmpSample.error;
 	                    dstSamples->list_categories[category].n_samples++;
 	                    dstSamples->n_samples++;
-                        count++;
+
 	                    if (dstSamples->n_samples == dstSamples->max_samples)
 		                    goto exit;	                    
 	                }
                 }
+                else
+                    discarded++;
             }
         }
 
@@ -257,14 +261,16 @@ int transition_bkw_step_smooth_lms(lweInstance *lwe, bkwStepParameters *srcBkwSt
 	                    dstSamples->list_categories[category].list[n_samples_in_category].a = malloc(lwe->n*sizeof(u16));
 	                    memcpy(dstSamples->list_categories[category].list[n_samples_in_category].a, tmpSample.a, lwe->n*sizeof(u16));
 	                    dstSamples->list_categories[category].list[n_samples_in_category].z = tmpSample.z;
-	                    dstSamples->list_categories[category].list[n_samples_in_category].error = tmpSample.error;
+	                    // dstSamples->list_categories[category].list[n_samples_in_category].error = tmpSample.error;
 	                    dstSamples->list_categories[category].n_samples++;
 	                    dstSamples->n_samples++;
-                        count++;
+
 	                    if (dstSamples->n_samples == dstSamples->max_samples)
 		                    goto exit;
 	                }
                 }
+                else
+                    discarded++;
             }
         }
 
@@ -274,6 +280,7 @@ int transition_bkw_step_smooth_lms(lweInstance *lwe, bkwStepParameters *srcBkwSt
 
 exit:
 
+    time_stamp("discarded samples: %ld\n", discarded);
     free(tmpSample.a);
 
     return 0;

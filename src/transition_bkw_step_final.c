@@ -32,7 +32,7 @@ static u64 subtractSamples(lweInstance *lwe, sample *outSample, sample *sample1,
     for (int i=0; i < n; i++)
         outSample->a[i] = diffTable(sample1->a[i], sample2->a[i]);
     outSample->z = diffTable(sample1->z, sample2->z);
-    outSample->error = diffTable(sample1->error, sample2->error);
+    // outSample->error = diffTable(sample1->error, sample2->error);
 
     return 0;
 }
@@ -48,7 +48,7 @@ static int addSamples(lweInstance *lwe, sample *outSample, sample *sample1, samp
     for (int i=0; i < n; i++)
         outSample->a[i] = sumTable(sample1->a[i], sample2->a[i]);
     outSample->z = sumTable(sample1->z, sample2->z);
-    outSample->error = sumTable(sample1->error, sample2->error);
+    // outSample->error = sumTable(sample1->error, sample2->error);
 
     return 0;
 }
@@ -82,7 +82,7 @@ int transition_bkw_step_final(lweInstance *lwe, bkwStepParameters *srcBkwStepPar
 	                    dstSamples->list[count].a = calloc(lwe->n, sizeof(u16));
 	                    memcpy(dstSamples->list[count].a, tmpSample.a, lwe->n*sizeof(u16));
 	                    dstSamples->list[count].z = tmpSample.z;
-	                    dstSamples->list[count].error = tmpSample.error;
+	                    // dstSamples->list[count].error = tmpSample.error;
 	                    dstSamples->n_samples++;
                         count++;
 	                }
@@ -119,7 +119,7 @@ int transition_bkw_step_final(lweInstance *lwe, bkwStepParameters *srcBkwStepPar
 	                    dstSamples->list[count].a = malloc(lwe->n*sizeof(u16));
 	                    memcpy(dstSamples->list[count].a, tmpSample.a, lwe->n*sizeof(u16));
 	                    dstSamples->list[count].z = tmpSample.z;
-	                    dstSamples->list[count].error = tmpSample.error;
+	                    // dstSamples->list[count].error = tmpSample.error;
                         dstSamples->n_samples++;
 	                    count++;
 	                }
@@ -145,7 +145,7 @@ int transition_bkw_step_final(lweInstance *lwe, bkwStepParameters *srcBkwStepPar
 	                    dstSamples->list[count].a = malloc(lwe->n*sizeof(u16));
 	                    memcpy(dstSamples->list[count].a, tmpSample.a, lwe->n*sizeof(u16));
 	                    dstSamples->list[count].z = tmpSample.z;
-	                    dstSamples->list[count].error = tmpSample.error;
+	                    // dstSamples->list[count].error = tmpSample.error;
                         dstSamples->n_samples++;
 	                    count++;
 	                }
@@ -170,7 +170,7 @@ int transition_bkw_step_final(lweInstance *lwe, bkwStepParameters *srcBkwStepPar
 	                    dstSamples->list[count].a = malloc(lwe->n*sizeof(u16));
 	                    memcpy(dstSamples->list[count].a, tmpSample.a, lwe->n*sizeof(u16));
 	                    dstSamples->list[count].z = tmpSample.z;
-	                    dstSamples->list[count].error = tmpSample.error;
+	                    // dstSamples->list[count].error = tmpSample.error;
                         dstSamples->n_samples++;
 	                    count++;
 	                }

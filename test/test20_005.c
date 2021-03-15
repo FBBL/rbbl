@@ -74,7 +74,7 @@ int main()
         bkwStepPar[i].p2 = bkwStepPar[i].p;
         bkwStepPar[i].prev_p1 = prev_p1_step[i];// i ==  0 ? -1 : bkwStepPar[i-1].p1;
         ASSERT(bkwStepPar[i].p2 != 0, "smooth-LMS p2 parameter not valid");
-        // printf("step %d categories %ld\n", i, num_categories(&lwe, &bkwStepPar[i]));
+        printf("step %d categories %ld\n", i, num_categories(&lwe, &bkwStepPar[i]));
     }
     // exit(0);
 

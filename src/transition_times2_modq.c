@@ -26,7 +26,7 @@ int sample_times2_modq(sample *dstSample, sample *srcSample, lweInstance *lwe, b
     for (int i=0; i<n; i++)
         dstSample->a[i] = (2*srcSample->a[i]) % q;
     dstSample->z = (2*srcSample->z) % q;
-    dstSample->error = (2*srcSample->error) % q;
+    // dstSample->error = (2*srcSample->error) % q;
 
     int index = position_values_2_category_index(lwe, bkwStepPar, dstSample->a);
 
@@ -65,7 +65,7 @@ int transition_times2_modq(lweInstance *lwe, bkwStepParameters *bkwStepPar, sort
                 sortedSamples->list_categories[category].list[n_samples_in_category].a = calloc(lwe->n, sizeof(u16));
                 memcpy(sortedSamples->list_categories[category].list[n_samples_in_category].a, tmpSample.a, lwe->n*sizeof(u16));
                 sortedSamples->list_categories[category].list[n_samples_in_category].z = tmpSample.z;
-                sortedSamples->list_categories[category].list[n_samples_in_category].error = tmpSample.error;
+                // sortedSamples->list_categories[category].list[n_samples_in_category].error = tmpSample.error;
                 sortedSamples->list_categories[category].n_samples++;
                 sortedSamples->n_samples++;
             }

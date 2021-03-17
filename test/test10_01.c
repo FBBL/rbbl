@@ -34,6 +34,7 @@
 int main()
 {
     u64 n_samples = 10000;
+    u64 samples_for_guessing = 10000;
 
     lweInstance lwe;
     int n = 10;
@@ -57,11 +58,12 @@ int main()
 
     time_stamp("Samples allocated: %ld", n_samples);
 
- int start_index[NUM_REDUCTION_STEPS] =            {0,    2,   4,   6};
- int len_step[NUM_REDUCTION_STEPS] =               {2,    2,   2,   1};
- int p_step[NUM_REDUCTION_STEPS] =                 {9,    9,   7,   3};
- int p1_step[NUM_REDUCTION_STEPS] =                {30,  17,  17,   3};
- int prev_p1_step[NUM_REDUCTION_STEPS] =           {-1,  30,  17,  17};
+    int start_index[NUM_REDUCTION_STEPS] =            {0,    2,   4,   6};
+    int len_step[NUM_REDUCTION_STEPS] =               {2,    2,   2,   1};
+    int p_step[NUM_REDUCTION_STEPS] =                 {9,    9,   9,   9};
+    int p1_step[NUM_REDUCTION_STEPS] =                {30,  17,  17,   3};
+    int prev_p1_step[NUM_REDUCTION_STEPS] =           {-1,  30,  17,  17};
+    int un_selection[NUM_REDUCTION_STEPS] =           { 0,   0,   0,   9};
 
     bkwStepParameters bkwStepPar[NUM_REDUCTION_STEPS];
     /* Set steps: smooth LMS */
@@ -73,6 +75,7 @@ int main()
         bkwStepPar[i].p1 = p1_step[i]; //19; // test
         bkwStepPar[i].p2 = bkwStepPar[i].p;
         bkwStepPar[i].prev_p1 = prev_p1_step[i];// i ==  0 ? -1 : bkwStepPar[i-1].p1;
+        bkwStepPar[i].un_selection = un_selection[i];
         ASSERT(bkwStepPar[i].p2 != 0, "smooth-LMS p2 parameter not valid");
         printf("step %d categories %ld\n", i, num_categories(&lwe, &bkwStepPar[i]));
     }
@@ -121,7 +124,7 @@ int main()
     /* perform last reduction step */
     int i = numReductionSteps-1;
     time_stamp("Perform last smooth LMS reduction step %d/%d", numReductionSteps, numReductionSteps);
-    ret = transition_bkw_step_final(&lwe, &bkwStepPar[i], &bkwStepPar[i+1], srcSamples, &Samples, srcSamples->n_samples);
+    ret = transition_bkw_step_final(&lwe, &bkwStepPar[i], srcSamples, &Samples, samples_for_guessing);
 
     time_stamp("Number of samples: %d", Samples.n_samples);
 

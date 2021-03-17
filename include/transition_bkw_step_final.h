@@ -22,6 +22,6 @@
 #include "utils.h"
 #include "lookup_tables.h"
 
-int transition_bkw_step_final(lweInstance *lwe, bkwStepParameters *srcBkwStepPar, bkwStepParameters *dstBkwStepPar, sortedSamplesList *srcSamples, samplesList *dstSamples, int tot_final_samples);
+int transition_bkw_step_final(lweInstance *lwe, bkwStepParameters *srcBkwStepPar, sortedSamplesList *srcSamples, samplesList *dstSamples, int tot_final_samples);
 
 #endif /* TRANSITION_BKW_STEP_FINAL_H */

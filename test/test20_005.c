@@ -33,7 +33,8 @@
 
 int main()
 {
-    u64 n_samples = 1000000;
+    u64 n_samples = 500000;
+    u64 samples_for_guessing = 500000;
 
     lweInstance lwe;
     int n = 20;
@@ -57,11 +58,19 @@ int main()
 
     time_stamp("Samples allocated: %ld", n_samples);
 
- int start_index[NUM_REDUCTION_STEPS] =            {0,    2,   4,   6,   8,  11,  13,  16};
- int len_step[NUM_REDUCTION_STEPS] =               {2,    2,   2,   2,   2,   2,   3,   4};
- int p_step[NUM_REDUCTION_STEPS] =                 {1,    1,   1,   1,   1,   3,   6,  10};
- int p1_step[NUM_REDUCTION_STEPS] =                {75,  28,   9,   3,   1,   8,   6,  62};
- int prev_p1_step[NUM_REDUCTION_STEPS] =           {-1,  75,  28,   9,   3,  -1,   8,   6};
+    // int start_index[NUM_REDUCTION_STEPS] =            {0,    2,   4,   6,   8,  11,  13,  16};
+    // int len_step[NUM_REDUCTION_STEPS] =               {2,    2,   2,   2,   2,   2,   3,   4};
+    // int p_step[NUM_REDUCTION_STEPS] =                 {1,    1,   1,   1,   1,   3,   5,   6};
+    // int p1_step[NUM_REDUCTION_STEPS] =                {75,  28,   9,   3,   1,   8,   9, 401};
+    // int prev_p1_step[NUM_REDUCTION_STEPS] =           {-1,  75,  28,   9,   3,  -1,   8,   9};
+    // int un_selection[NUM_REDUCTION_STEPS] =           { 0,   0,   0,   0,   0,   0,  10,  10};
+
+    int start_index[NUM_REDUCTION_STEPS] =            {0,     2,   4,   6,   8,  10,  13,  16};
+    int len_step[NUM_REDUCTION_STEPS] =               {2,     2,   2,   2,   2,   3,   3,   4};
+    int p_step[NUM_REDUCTION_STEPS] =                 {1,     1,   1,   1,   1,   4,   8,  10};
+    int p1_step[NUM_REDUCTION_STEPS] =                {175, 110,  65,  35,  18,  68,  39, 401};
+    int prev_p1_step[NUM_REDUCTION_STEPS] =           {-1,  175, 110,  65,  35,  18,  68,  39};
+    int un_selection[NUM_REDUCTION_STEPS] =           { 0,    0,   0,   0,   0,   0,  20,  20};
 
     bkwStepParameters bkwStepPar[NUM_REDUCTION_STEPS];
     /* Set steps: smooth LMS */
@@ -73,6 +82,7 @@ int main()
         bkwStepPar[i].p1 = p1_step[i]; //19; // test
         bkwStepPar[i].p2 = bkwStepPar[i].p;
         bkwStepPar[i].prev_p1 = prev_p1_step[i];// i ==  0 ? -1 : bkwStepPar[i-1].p1;
+        bkwStepPar[i].un_selection = un_selection[i];
         ASSERT(bkwStepPar[i].p2 != 0, "smooth-LMS p2 parameter not valid");
         printf("step %d categories %ld\n", i, num_categories(&lwe, &bkwStepPar[i]));
     }
@@ -84,6 +94,10 @@ int main()
 
     u8 binary_solution[fwht_positions];
     short bf_solution[bruteForcePositions];
+
+    clock_t start, end;
+    double cpu_time_used;
+    start = clock();
 
     time_stamp("Start reduction phase");
 
@@ -121,7 +135,7 @@ int main()
     /* perform last reduction step */
     int i = numReductionSteps-1;
     time_stamp("Perform last smooth LMS reduction step %d/%d", numReductionSteps, numReductionSteps);
-    ret = transition_bkw_step_final(&lwe, &bkwStepPar[i], &bkwStepPar[i+1], srcSamples, &Samples, srcSamples->n_samples);
+    ret = transition_bkw_step_final(&lwe, &bkwStepPar[i], srcSamples, &Samples, samples_for_guessing);
 
     time_stamp("Number of samples: %d", Samples.n_samples);
 
@@ -141,6 +155,16 @@ int main()
             original_binary_secret[i] = (lwe.s[i]+1) % 2;
     }
     // printf(")\n");
+
+    printf("EXAMPLE\n");
+    for (int i = 0; i < 3; ++i)
+    {
+        printf("(");
+        for (int j = 0; j < n; ++j)
+        {
+            printf("%d  ", Samples.list[i].a[j]);
+        }printf(")\n");
+    }
 
     freeSumAndDiffTables();
 
@@ -166,7 +190,10 @@ int main()
         printf("%d ",original_binary_secret[i]);
     printf("\n\n");
 
-    time_stamp("Terminate program");
+    end = clock();
+    cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
+
+    time_stamp("Terminate program: %lf seconds ", cpu_time_used);
 
     return 0;
 }

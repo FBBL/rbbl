@@ -252,7 +252,7 @@ int solve_fwht_search_bruteforce(u8 *binary_solution, short *bf_solution, int ze
         // Convert solution into binary
         int_to_bin(max_pos, bin_guess, fwht_positions);
 #ifdef PRINT_INTERMEDIATE
-        time_stamp("Index found %ld - max %f \n(",max_pos, max);
+        printf("Index found %ld - max %f \n(", max_pos, max);
         for(int j = 0; j<bf_positions; j++)
             printf("%d ", BFguess[j]);
         printf(") - (");

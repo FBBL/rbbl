@@ -72,6 +72,7 @@ typedef struct
     short p1; /* additional reduction factor for position Ni+1 */
     short p2; /* additional reduction factor for first position after the first step */
     short prev_p1; /* reduction factor for position Ni+1 in the previous step - used on all but the first steps */
+    short un_selection;
 } bkwStepParameters;
 
 /******************* BKW STEP PARAMETERS ***********************/

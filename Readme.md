@@ -5,7 +5,7 @@ Supporting smooth-Lazy Modulus Switch and FWHT-based guessing method.
 Usage
 ```
 make
-./build/test20_002.c
+./build/test20_005.c
 ```
 
 Author: Alessandro Budroni

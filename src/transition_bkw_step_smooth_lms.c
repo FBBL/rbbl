@@ -21,7 +21,7 @@
 
 #define MIN(X, Y)  ((X) < (Y) ? (X) : (Y))
 
-static u64 subtractSamples(lweInstance *lwe, sample *outSample, sample *sample1, sample *sample2, bkwStepParameters *dstBkwStepPar)
+static u64 subtractSamples(lweInstance *lwe, sample *outSample, sample *sample1, sample *sample2, bkwStepParameters *dstBkwStepPar, bkwStepParameters *srcBkwStepPar)
 {
     int n = lwe->n;
     int q = lwe->q;
@@ -34,12 +34,39 @@ static u64 subtractSamples(lweInstance *lwe, sample *outSample, sample *sample1,
     outSample->z = diffTable(sample1->z, sample2->z);
     // outSample->error = diffTable(sample1->error, sample2->error);
 
+    int tmp;
+    for (int i = srcBkwStepPar->startIndex; i < srcBkwStepPar->startIndex + srcBkwStepPar->numPositions; ++i)
+    {
+        tmp = outSample->a[i] < q/2 ? outSample->a[i] : (int)outSample->a[i] -q;
+        if (tmp > srcBkwStepPar->p || tmp < -srcBkwStepPar->p)
+        {
+            printf("Reduction ERROR, p = %d. %d - %d \n", srcBkwStepPar->p, tmp, tmp > srcBkwStepPar->p || tmp < -srcBkwStepPar->p);
+            printf("from %d to %d \n", srcBkwStepPar->startIndex, srcBkwStepPar->startIndex + srcBkwStepPar->numPositions);
+            printf("Sample 1 (");
+            for (int j = srcBkwStepPar->startIndex; j < srcBkwStepPar->startIndex + srcBkwStepPar->numPositions; j++)
+            {
+                printf("%d, ", sample1->a[i]);
+            }printf(")\n");
+            printf("Sample 2 (");
+            for (int j = srcBkwStepPar->startIndex; j < srcBkwStepPar->startIndex + srcBkwStepPar->numPositions; j++)
+            {
+                printf("%d, ", sample2->a[i]);
+            }printf(")\n");
+             printf("Result   (");
+            for (int j = srcBkwStepPar->startIndex; j < srcBkwStepPar->startIndex + srcBkwStepPar->numPositions; j++)
+            {
+                printf("%d, ", outSample->a[i]);
+            }printf(")\n");
+            exit(0);
+        }
+    }
+
     u64 index = position_values_2_category_index(lwe, dstBkwStepPar, outSample->a + dstBkwStepPar->startIndex);
 
     return index;
 }
 
-static u64 addSamples(lweInstance *lwe, sample *outSample, sample *sample1, sample *sample2, bkwStepParameters *dstBkwStepPar)
+static u64 addSamples(lweInstance *lwe, sample *outSample, sample *sample1, sample *sample2, bkwStepParameters *dstBkwStepPar, bkwStepParameters *srcBkwStepPar)
 {
     int n = lwe->n;
     int q = lwe->q;
@@ -51,6 +78,33 @@ static u64 addSamples(lweInstance *lwe, sample *outSample, sample *sample1, samp
         outSample->a[i] = sumTable(sample1->a[i], sample2->a[i]);
     outSample->z = sumTable(sample1->z, sample2->z);
     // outSample->error = sumTable(sample1->error, sample2->error);
+
+    int tmp;
+    for (int i = srcBkwStepPar->startIndex; i < srcBkwStepPar->startIndex + srcBkwStepPar->numPositions; ++i)
+    {
+        tmp = outSample->a[i] < q/2 ? outSample->a[i] : (int)outSample->a[i] -q;
+        if (tmp > srcBkwStepPar->p || tmp < -srcBkwStepPar->p)
+        {
+            printf("Reduction (sum) ERROR, p = %d \n", srcBkwStepPar->p);
+            printf("from %d to %d \n", srcBkwStepPar->startIndex, srcBkwStepPar->startIndex + srcBkwStepPar->numPositions);
+            printf("Sample 1 (");
+            for (int j = srcBkwStepPar->startIndex; j < srcBkwStepPar->startIndex + srcBkwStepPar->numPositions; j++)
+            {
+                printf("%d, ", sample1->a[i]);
+            }printf(")\n");
+            printf("Sample 2 (");
+            for (int j = srcBkwStepPar->startIndex; j < srcBkwStepPar->startIndex + srcBkwStepPar->numPositions; j++)
+            {
+                printf("%d, ", sample2->a[i]);
+            }printf(")\n");
+             printf("Result   (");
+            for (int j = srcBkwStepPar->startIndex; j < srcBkwStepPar->startIndex + srcBkwStepPar->numPositions; j++)
+            {
+                printf("%d, ", outSample->a[i]);
+            }printf(")\n");
+            exit(0);
+        }
+    }
 
     u64 index = position_values_2_category_index(lwe, dstBkwStepPar, outSample->a + dstBkwStepPar->startIndex);
 
@@ -78,7 +132,7 @@ int transition_bkw_step_smooth_lms(lweInstance *lwe, bkwStepParameters *srcBkwSt
             for (int j=i+1; j < srcSamples->list_categories[0].n_samples; j++)
             {
 
-                category = subtractSamples(lwe, &tmpSample, &srcSamples->list_categories[0].list[i], &srcSamples->list_categories[0].list[j], dstBkwStepPar);
+                category = subtractSamples(lwe, &tmpSample, &srcSamples->list_categories[0].list[i], &srcSamples->list_categories[0].list[j], dstBkwStepPar, srcBkwStepPar);
                 
                 if (category > dstSamples->n_categories || category < 0)
                 {
@@ -136,7 +190,7 @@ int transition_bkw_step_smooth_lms(lweInstance *lwe, bkwStepParameters *srcBkwSt
         {
             for (int j=i+1; j < srcSamples->list_categories[index1].n_samples; j++)
             {
-                category = subtractSamples(lwe, &tmpSample, &srcSamples->list_categories[index1].list[i], &srcSamples->list_categories[index1].list[j], dstBkwStepPar);
+                category = subtractSamples(lwe, &tmpSample, &srcSamples->list_categories[index1].list[i], &srcSamples->list_categories[index1].list[j], dstBkwStepPar, srcBkwStepPar);
                 
                 if (category > dstSamples->n_categories || category < 0)
                 {
@@ -184,7 +238,7 @@ int transition_bkw_step_smooth_lms(lweInstance *lwe, bkwStepParameters *srcBkwSt
         {
             for (int j=i+1; j < srcSamples->list_categories[index2].n_samples; j++)
             {
-                category = subtractSamples(lwe, &tmpSample, &srcSamples->list_categories[index2].list[i], &srcSamples->list_categories[index2].list[j], dstBkwStepPar);
+                category = subtractSamples(lwe, &tmpSample, &srcSamples->list_categories[index2].list[i], &srcSamples->list_categories[index2].list[j], dstBkwStepPar, srcBkwStepPar);
 
                 if (category > dstSamples->n_categories || category < 0)
                 {
@@ -232,7 +286,7 @@ int transition_bkw_step_smooth_lms(lweInstance *lwe, bkwStepParameters *srcBkwSt
         {
             for (int j=0; j<srcSamples->list_categories[index2].n_samples; j++)
             {
-                category = addSamples(lwe, &tmpSample, &srcSamples->list_categories[index1].list[i], &srcSamples->list_categories[index2].list[j], dstBkwStepPar);
+                category = addSamples(lwe, &tmpSample, &srcSamples->list_categories[index1].list[i], &srcSamples->list_categories[index2].list[j], dstBkwStepPar, srcBkwStepPar);
 
                 if (category > dstSamples->n_categories || category < 0)
                 {
@@ -280,7 +334,7 @@ int transition_bkw_step_smooth_lms(lweInstance *lwe, bkwStepParameters *srcBkwSt
 
 exit:
 
-    time_stamp("discarded samples: %ld\n", discarded);
+    time_stamp("discarded samples: %ld", discarded);
     free(tmpSample.a);
 
     return 0;

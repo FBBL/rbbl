@@ -21,13 +21,10 @@
 
 #define MIN(X, Y)  ((X) < (Y) ? (X) : (Y))
 
-static u64 subtractSamples(lweInstance *lwe, sample *outSample, sample *sample1, sample *sample2, bkwStepParameters *dstBkwStepPar)
+static u64 subtractSamples(lweInstance *lwe, sample *outSample, sample *sample1, sample *sample2)
 {
     int n = lwe->n;
     int q = lwe->q;
-
-    int startIndex = dstBkwStepPar->startIndex;
-    int numPositions = dstBkwStepPar->numPositions;
 
     for (int i=0; i < n; i++)
         outSample->a[i] = diffTable(sample1->a[i], sample2->a[i]);
@@ -37,13 +34,10 @@ static u64 subtractSamples(lweInstance *lwe, sample *outSample, sample *sample1,
     return 0;
 }
 
-static int addSamples(lweInstance *lwe, sample *outSample, sample *sample1, sample *sample2, bkwStepParameters *dstBkwStepPar)
+static int addSamples(lweInstance *lwe, sample *outSample, sample *sample1, sample *sample2)
 {
     int n = lwe->n;
     int q = lwe->q;
-
-    int startIndex = dstBkwStepPar->startIndex;
-    int numPositions = dstBkwStepPar->numPositions;
 
     for (int i=0; i < n; i++)
         outSample->a[i] = sumTable(sample1->a[i], sample2->a[i]);
@@ -53,7 +47,25 @@ static int addSamples(lweInstance *lwe, sample *outSample, sample *sample1, samp
     return 0;
 }
 
-int transition_bkw_step_final(lweInstance *lwe, bkwStepParameters *srcBkwStepPar, bkwStepParameters *dstBkwStepPar, sortedSamplesList *srcSamples, samplesList *dstSamples, int tot_final_samples)
+/* Return 1 if passes unnatural selection, 0 otherwise */
+static int unnaturalSelection(lweInstance *lwe, sample *Sample, bkwStepParameters *srcBkwStepPar)
+{
+    int n = lwe->n;
+    int q = lwe->q;
+
+    int tmp;
+
+    for (int i=0; i < srcBkwStepPar->startIndex + srcBkwStepPar->numPositions; i++)
+    {
+        tmp = Sample->a[i] < q/2 ? Sample->a[i] : (int)Sample->a[i] -q;
+        if (tmp > srcBkwStepPar->un_selection || tmp < -srcBkwStepPar->un_selection)
+            return 0;
+    }
+
+    return 1;
+}
+
+int transition_bkw_step_final(lweInstance *lwe, bkwStepParameters *srcBkwStepPar, sortedSamplesList *srcSamples, samplesList *dstSamples, int tot_final_samples)
 {
 
     allocate_samples_list(dstSamples, lwe, tot_final_samples); // actually one could have more or less samples
@@ -61,7 +73,7 @@ int transition_bkw_step_final(lweInstance *lwe, bkwStepParameters *srcBkwStepPar
     sample tmpSample;
     tmpSample.a = calloc(lwe->n, sizeof(u16));
 
-    u64 index1, index2, count = 0;
+    u64 index1, index2, discarded = 0;
 
     dstSamples->n_samples = 0;
 
@@ -72,23 +84,24 @@ int transition_bkw_step_final(lweInstance *lwe, bkwStepParameters *srcBkwStepPar
         {
             for (int j=i+1; j < srcSamples->list_categories[0].n_samples; j++)
             {
-                subtractSamples(lwe, &tmpSample, &srcSamples->list_categories[0].list[i], &srcSamples->list_categories[0].list[j], dstBkwStepPar);
+                subtractSamples(lwe, &tmpSample, &srcSamples->list_categories[0].list[i], &srcSamples->list_categories[0].list[j]);
                 
-                if (!checkzero((char*)tmpSample.a, sizeof(u16)*lwe->n))
+                if (!checkzero((char*)tmpSample.a, sizeof(u16)*lwe->n) && unnaturalSelection(lwe, &tmpSample, srcBkwStepPar))
                 {
 	                // add it to the new list
-	                if (count < tot_final_samples)
+	                if (dstSamples->n_samples < tot_final_samples)
 	                {
-	                    dstSamples->list[count].a = calloc(lwe->n, sizeof(u16));
-	                    memcpy(dstSamples->list[count].a, tmpSample.a, lwe->n*sizeof(u16));
-	                    dstSamples->list[count].z = tmpSample.z;
-	                    // dstSamples->list[count].error = tmpSample.error;
+	                    dstSamples->list[dstSamples->n_samples].a = calloc(lwe->n, sizeof(u16));
+	                    memcpy(dstSamples->list[dstSamples->n_samples].a, tmpSample.a, lwe->n*sizeof(u16));
+	                    dstSamples->list[dstSamples->n_samples].z = tmpSample.z;
+	                    // dstSamples->list[dstSamples->n_samples].error = tmpSample.error;
 	                    dstSamples->n_samples++;
-                        count++;
 	                }
 	                else
 	                    goto exit;
 	            }
+	            else
+	            	discarded++;
             }
         }
 
@@ -101,7 +114,7 @@ int transition_bkw_step_final(lweInstance *lwe, bkwStepParameters *srcBkwStepPar
     }
 
     /* process samples with LF2 method */
-    while (index2 < srcSamples->n_categories && count < tot_final_samples)
+    while (index2 < srcSamples->n_categories && dstSamples->n_samples < tot_final_samples)
     {
 
         // process single category
@@ -109,23 +122,24 @@ int transition_bkw_step_final(lweInstance *lwe, bkwStepParameters *srcBkwStepPar
         {
             for (int j=i+1; j < srcSamples->list_categories[index1].n_samples; j++)
             {
-                subtractSamples(lwe, &tmpSample, &srcSamples->list_categories[index1].list[i], &srcSamples->list_categories[index1].list[j], dstBkwStepPar);
+                subtractSamples(lwe, &tmpSample, &srcSamples->list_categories[index1].list[i], &srcSamples->list_categories[index1].list[j]);
                 
-                if (!checkzero((char*)tmpSample.a, sizeof(u16)*lwe->n))
+                if (!checkzero((char*)tmpSample.a, sizeof(u16)*lwe->n) && unnaturalSelection(lwe, &tmpSample, srcBkwStepPar))
                 {
 	                // add it to the new list
-	                if (count < tot_final_samples)
+	                if (dstSamples->n_samples < tot_final_samples)
 	                {
-	                    dstSamples->list[count].a = malloc(lwe->n*sizeof(u16));
-	                    memcpy(dstSamples->list[count].a, tmpSample.a, lwe->n*sizeof(u16));
-	                    dstSamples->list[count].z = tmpSample.z;
-	                    // dstSamples->list[count].error = tmpSample.error;
+	                    dstSamples->list[dstSamples->n_samples].a = malloc(lwe->n*sizeof(u16));
+	                    memcpy(dstSamples->list[dstSamples->n_samples].a, tmpSample.a, lwe->n*sizeof(u16));
+	                    dstSamples->list[dstSamples->n_samples].z = tmpSample.z;
+	                    // dstSamples->list[dstSamples->n_samples].error = tmpSample.error;
                         dstSamples->n_samples++;
-	                    count++;
 	                }
 	                else
 	                    goto exit;
 				}
+				else
+	            	discarded++;
             }
         }
 
@@ -134,24 +148,25 @@ int transition_bkw_step_final(lweInstance *lwe, bkwStepParameters *srcBkwStepPar
         {
             for (int j=i+1; j < srcSamples->list_categories[index2].n_samples; j++)
             {
-                subtractSamples(lwe, &tmpSample, &srcSamples->list_categories[index2].list[i], &srcSamples->list_categories[index2].list[j], dstBkwStepPar);
+                subtractSamples(lwe, &tmpSample, &srcSamples->list_categories[index2].list[i], &srcSamples->list_categories[index2].list[j]);
                 
-                if (!checkzero((char*)tmpSample.a, sizeof(u16)*lwe->n))
+                if (!checkzero((char*)tmpSample.a, sizeof(u16)*lwe->n) && unnaturalSelection(lwe, &tmpSample, srcBkwStepPar))
                 {
 
 	                // add it to the new list
-	                if (count < tot_final_samples)
+	                if (dstSamples->n_samples < tot_final_samples)
 	                {
-	                    dstSamples->list[count].a = malloc(lwe->n*sizeof(u16));
-	                    memcpy(dstSamples->list[count].a, tmpSample.a, lwe->n*sizeof(u16));
-	                    dstSamples->list[count].z = tmpSample.z;
-	                    // dstSamples->list[count].error = tmpSample.error;
+	                    dstSamples->list[dstSamples->n_samples].a = malloc(lwe->n*sizeof(u16));
+	                    memcpy(dstSamples->list[dstSamples->n_samples].a, tmpSample.a, lwe->n*sizeof(u16));
+	                    dstSamples->list[dstSamples->n_samples].z = tmpSample.z;
+	                    // dstSamples->list[dstSamples->n_samples].error = tmpSample.error;
                         dstSamples->n_samples++;
-	                    count++;
 	                }
 	                else
 	                    goto exit;
 				}
+				else
+	            	discarded++;
             }
         }
 
@@ -160,23 +175,24 @@ int transition_bkw_step_final(lweInstance *lwe, bkwStepParameters *srcBkwStepPar
         {
             for (int j=0; j<srcSamples->list_categories[index2].n_samples; j++)
             {
-                addSamples(lwe, &tmpSample, &srcSamples->list_categories[index1].list[i], &srcSamples->list_categories[index2].list[j], dstBkwStepPar);
+                addSamples(lwe, &tmpSample, &srcSamples->list_categories[index1].list[i], &srcSamples->list_categories[index2].list[j]);
                 
-                if (!checkzero((char*)tmpSample.a, sizeof(u16)*lwe->n))
+                if (!checkzero((char*)tmpSample.a, sizeof(u16)*lwe->n) && unnaturalSelection(lwe, &tmpSample, srcBkwStepPar))
                 {
 	                // add it to the new list
-	                if (count < tot_final_samples)
+	                if (dstSamples->n_samples < tot_final_samples)
 	                {
-	                    dstSamples->list[count].a = malloc(lwe->n*sizeof(u16));
-	                    memcpy(dstSamples->list[count].a, tmpSample.a, lwe->n*sizeof(u16));
-	                    dstSamples->list[count].z = tmpSample.z;
-	                    // dstSamples->list[count].error = tmpSample.error;
+	                    dstSamples->list[dstSamples->n_samples].a = malloc(lwe->n*sizeof(u16));
+	                    memcpy(dstSamples->list[dstSamples->n_samples].a, tmpSample.a, lwe->n*sizeof(u16));
+	                    dstSamples->list[dstSamples->n_samples].z = tmpSample.z;
+	                    // dstSamples->list[dstSamples->n_samples].error = tmpSample.error;
                         dstSamples->n_samples++;
-	                    count++;
 	                }
 	                else
 	                    goto exit;
 				}
+				else
+	            	discarded++;
             }
         }
 
@@ -185,7 +201,7 @@ int transition_bkw_step_final(lweInstance *lwe, bkwStepParameters *srcBkwStepPar
     }
 
 exit:
-
+    time_stamp("discarded samples: %ld", discarded);
     free(tmpSample.a);
 
     return 0;

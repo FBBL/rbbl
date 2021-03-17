@@ -29,11 +29,12 @@
 
 #define NUM_REDUCTION_STEPS 12
 #define BRUTE_FORCE_POSITIONS 0
-#define ZERO_POSITIONS 16
+#define ZERO_POSITIONS 18
 
 int main()
 {
-    u64 n_samples = 47000000;
+    u64 n_samples = 50000000;
+    u64 samples_for_guessing = 5000000;
 
     lweInstance lwe;
     int n = 38;
@@ -58,19 +59,21 @@ int main()
    // int p1_step[NUM_REDUCTION_STEPS] =                {165,  30,    6,   1, 165,  30,   6,   1, 270,  25, 100,  120,  1601};
    // int prev_p1_step[NUM_REDUCTION_STEPS] =           {-1,  165,   30,   6,  -1, 165,  30,   6,  -1, 270,  25,  100,  120};
 
-   // int start_index[NUM_REDUCTION_STEPS] =            {0,     2,    4,   6,   9,  11,  13,  15,  18,  21,  25,   29,   34};
-   // int len_step[NUM_REDUCTION_STEPS] =               {2,     2,    2,   2,   2,   2,   2,   2,   3,   4,   4,    5,    5};
-   // int p_step[NUM_REDUCTION_STEPS] =                 {1,     1,    1,   1,   1,   1,   1,   1,  17,  24,  34,   46,   66};
-   // int p1_step[NUM_REDUCTION_STEPS] =                {165,  30,    6,   1, 165,  30,   6,   1,  46,  66,  23,   81,  1601};
-   // int prev_p1_step[NUM_REDUCTION_STEPS] =           {-1,  165,   30,   6,  -1, 165,  30,   6,  -1,  46,  66,   23,   81};
+//                                                    0      1     2    3    4    5    6    7    8      9    10     11     12
+   // int start_index[NUM_REDUCTION_STEPS] =            {0,     2,    4,   6,   9,  11,  13,  15,   18,   21,   25,    29,    33};
+   // int len_step[NUM_REDUCTION_STEPS] =               {2,     2,    2,   2,   2,   2,   2,   2,    3,    4,    4,     4,     5};
+   // int p_step[NUM_REDUCTION_STEPS] =                 {1,     1,    1,   1,   1,   1,   1,   1,    7,   19,   23,    27,    35};
+   // int p1_step[NUM_REDUCTION_STEPS] =                {165,  30,    6,   1, 165,  30,   6,   1,  346,  800,  800,   268,  1601};
+   // int prev_p1_step[NUM_REDUCTION_STEPS] =           {-1,  165,   30,   6,  -1, 165,  30,   6,   -1,  346,  800,   800,   268};
+   // int un_selection[NUM_REDUCTION_STEPS] =           {0,     0,    0,   0,   0,   0,   0,   0,    0,    0,    0,   130,   130};
 
-//                                                    0      1     2     3    4     5     6     7     8     9   10    11
-   // BRUTEFORCE = 2
-   int start_index[NUM_REDUCTION_STEPS] =            {0,     2,    4,    7,   9,   11,   14,   16,   19,   23,  27,   32};
-   int len_step[NUM_REDUCTION_STEPS] =               {2,     2,    2,    2,   2,    2,    2,    3,    4,    4,   5,    6};
-   int p_step[NUM_REDUCTION_STEPS] =                 {1,     1,    1,    1,   1,    1,    1,   11,   16,   20,  54,   63};
-   int p1_step[NUM_REDUCTION_STEPS] =                {90,   10,    1,   90,  10,    1,   87,   11,   68,  120, 125, 1601};
-   int prev_p1_step[NUM_REDUCTION_STEPS] =           {-1,   90,   10,   -1,  90,   10,   -1,   87,   11,   68, 120,  125};
+//                                                     0      1     2     3    4     5     6     7     8     9   10    11
+    int start_index[NUM_REDUCTION_STEPS] =            {0,     2,    4,    7,   9,   11,   14,   16,   19,   23,  27,   32};
+    int len_step[NUM_REDUCTION_STEPS] =               {2,     2,    2,    2,   2,    2,    2,    3,    4,    4,   5,    6};
+    int p_step[NUM_REDUCTION_STEPS] =                 {1,     1,    1,    1,   1,    1,    1,   10,   15,   24,  40,   59};
+    int p1_step[NUM_REDUCTION_STEPS] =                {90,   10,    1,   90,  10,    1,   75,   11,   63,   40, 125, 1601};
+    int prev_p1_step[NUM_REDUCTION_STEPS] =           {-1,   90,   10,   -1,  90,   10,   -1,   75,   11,   63,  40,  125};
+    int un_selection[NUM_REDUCTION_STEPS] =           {0,     0,    0,    0,   0,    0,    0,    0,    0,    0,  60,   60};
 
     bkwStepParameters bkwStepPar[NUM_REDUCTION_STEPS];
     /* Set steps: smooth LMS */
@@ -82,6 +85,7 @@ int main()
         bkwStepPar[i].p1 = p1_step[i];
         bkwStepPar[i].p2 = bkwStepPar[i].p;
         bkwStepPar[i].prev_p1 = prev_p1_step[i];//i == 0 ? -1 : bkwStepPar[i-1].p1;
+        bkwStepPar[i].un_selection = un_selection[i];
         ASSERT(bkwStepPar[i].p2 != 0, "smooth-LMS p2 parameter not valid");
         printf("step %02d categories %lu\n", i, num_categories(&lwe, &bkwStepPar[i]));
     }
@@ -139,14 +143,15 @@ int main()
     /* perform last reduction step */
     int i = numReductionSteps-1;
     time_stamp("Perform last smooth LMS reduction step %d/%d", numReductionSteps, numReductionSteps);
-    ret = solve_fwht_search(binary_solution, zero_positions, fwht_positions, &Samples, &lwe);
-    // ret = transition_bkw_step_final(&lwe, &bkwStepPar[i], &bkwStepPar[i+1], srcSamples, &Samples, srcSamples->n_samples);
-
-    time_stamp("Number of samples: %d", Samples.n_samples);
+    ret = transition_bkw_step_final(&lwe, &bkwStepPar[i], srcSamples, &Samples, samples_for_guessing);
 
     // clean past list
     tmpSamples = srcSamples;
     free_sorted_samples(tmpSamples);
+
+    freeSumAndDiffTables();
+
+    time_stamp("Number of samples: %d", Samples.n_samples);
 
     /* compute binary secret */
     u8 original_binary_secret[lwe.n];
@@ -161,20 +166,18 @@ int main()
     }
     // printf(")\n");
 
-    freeSumAndDiffTables();
-
     /* Solving phase - using Fast Walsh Hadamard Tranform */
 
     time_stamp("Apply Fast Walsh Hadamard Tranform");
-    ret = solve_fwht_search(binary_solution, zero_positions, fwht_positions, &Samples, &lwe);
-    // ret = solve_fwht_search_bruteforce(binary_solution, bf_solution, zero_positions, bf_positions, fwht_positions, &Samples, &lwe);
+    // ret = solve_fwht_search(binary_solution, zero_positions, fwht_positions, &Samples, &lwe);
+    ret = solve_fwht_search_bruteforce(binary_solution, bf_solution, zero_positions, bf_positions, fwht_positions, &Samples, &lwe);
     if(ret)
     {
         printf("error %d in solve_fwht_search_hybrid\n", ret);
         exit(-1);
     }
 
-    printf("EXAMLE\n");
+    printf("EXAMPLE\n");
     for (int i = 0; i < 3; ++i)
     {
         printf("(");

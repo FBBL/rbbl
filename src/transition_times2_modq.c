@@ -73,10 +73,6 @@ int transition_times2_modq(lweInstance *lwe, bkwStepParameters *bkwStepPar, sort
         count++;
     }
 
-    // for (int i = 0; i < sortedSamples->n_categories; ++i)
-    //     printf("%d ", sortedSamples->list_categories[i].n_samples);
-    // printf("\n");
-
     free(tmpSample.a);
 
     return 1;

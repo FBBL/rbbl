@@ -19,6 +19,7 @@
 
 #include <stdio.h>
 #include <math.h>
+#include <time.h>
 
 #define LEN_MAX_CDF 200
 
@@ -66,11 +67,12 @@ void lwe_init(lweInstance *lwe, u16 n, u16 q, double alpha){
     lwe->alpha = alpha;
     lwe->sigma = alpha*q;
 
-    int seed = get_seed();
-    srand((unsigned) seed);
+    srand(time(NULL));
+    randomUtilRandomize();
+    randomUtilInit(&lwe->ctx);
 
     for (u16 i = 0; i < n; i++)
-        lwe->s[i] = (u16)(rand());
+        lwe->s[i] = (u16)(randomUtil64(&lwe->ctx));
 
     unsigned int i, j;
 
@@ -113,9 +115,10 @@ void create_lwe_samples(samplesList *Samples, lweInstance *lwe, int n_samples){
     {
         Samples->list[i].a = calloc(lwe->n, sizeof(u16));
         Samples->list[i].z = 0;
+
         for (int j = 0; j < n; j++)
         {
-            Samples->list[i].a[j] = (u16)(rand() % q);
+            Samples->list[i].a[j] = (u16)randomUtilInt(&lwe->ctx, q);
             Samples->list[i].z = (Samples->list[i].z + Samples->list[i].a[j]*lwe->s[j]) % q;
         }
 

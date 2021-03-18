@@ -41,7 +41,7 @@ int main()
     int q = 1601;
     double alpha = 0.005;
 
-    time_stamp("LWE parameters: n: %d, q: %d, sigma: %lf*q. Initial samples: %lu", n, q, alpha, n_samples);
+    time_stamp("LWE parameters: n: %d, q: %d, sigma: %lf*q. Initial samples: %llu", n, q, alpha, n_samples);
 
     time_stamp("Precomputation");
     precompute_cdf_table(alpha*q);
@@ -87,7 +87,7 @@ int main()
         bkwStepPar[i].prev_p1 = prev_p1_step[i];//i == 0 ? -1 : bkwStepPar[i-1].p1;
         bkwStepPar[i].un_selection = un_selection[i];
         ASSERT(bkwStepPar[i].p2 != 0, "smooth-LMS p2 parameter not valid");
-        printf("step %02d categories %lu\n", i, num_categories(&lwe, &bkwStepPar[i]));
+        printf("step %02d categories %llu\n", i, num_categories(&lwe, &bkwStepPar[i]));
     }
 
     // exit(0);

@@ -19,6 +19,7 @@
 
 #include "utils.h"
 #include "config.h"
+#include "random_utils.h"
 
 /* max number of rows */
 #define MAX_N 50
@@ -30,6 +31,9 @@ typedef struct
     double alpha;
     double sigma;
     short s[MAX_N];
+
+    // random
+    rand_ctx ctx;
 
 } lweInstance;
 

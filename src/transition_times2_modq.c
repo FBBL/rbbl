@@ -58,7 +58,7 @@ int transition_times2_modq(lweInstance *lwe, bkwStepParameters *bkwStepPar, sort
             {
                 if (category > sortedSamples->n_categories)
                 {
-                    printf("ERROR: category %ld tot categories %ld \n", category, sortedSamples->n_categories );
+                    printf("ERROR: category %llu tot categories %llu \n", category, sortedSamples->n_categories );
                     exit(0);
                 }
                 

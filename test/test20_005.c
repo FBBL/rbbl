@@ -33,7 +33,7 @@
 
 int main()
 {
-    u64 n_samples = 500000;
+    u64 n_samples = 800000;
     u64 samples_for_guessing = 500000;
 
     lweInstance lwe;
@@ -84,7 +84,7 @@ int main()
         bkwStepPar[i].prev_p1 = prev_p1_step[i];// i ==  0 ? -1 : bkwStepPar[i-1].p1;
         bkwStepPar[i].un_selection = un_selection[i];
         ASSERT(bkwStepPar[i].p2 != 0, "smooth-LMS p2 parameter not valid");
-        printf("step %d categories %ld\n", i, num_categories(&lwe, &bkwStepPar[i]));
+        printf("step %d categories %llu\n", i, num_categories(&lwe, &bkwStepPar[i]));
     }
     // exit(0);
 
@@ -155,16 +155,6 @@ int main()
             original_binary_secret[i] = (lwe.s[i]+1) % 2;
     }
     // printf(")\n");
-
-    printf("EXAMPLE\n");
-    for (int i = 0; i < 3; ++i)
-    {
-        printf("(");
-        for (int j = 0; j < n; ++j)
-        {
-            printf("%d  ", Samples.list[i].a[j]);
-        }printf(")\n");
-    }
 
     freeSumAndDiffTables();
 

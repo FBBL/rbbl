@@ -11,7 +11,7 @@ INCLUDE_dir=include
 # global variables
 CC=gcc
 MD=mkdir
-CFLAGS= -std=c11 -O3 -fsanitize=address -g -fno-omit-frame-pointer # -m64 -Wformat=0 -Wno-unused-function -Wno-unused-result -D_FILE_OFFSET_BITS=64 -DDEBUG -D_DEBUG -pedantic
+CFLAGS= -std=c11 -O3 # -fsanitize=address -g -fno-omit-frame-pointer  -m64 -Wformat=0 -Wno-unused-function -Wno-unused-result -D_FILE_OFFSET_BITS=64 -DDEBUG -D_DEBUG -pedantic
 IDIR = -I /usr/include -I /usr/local/include/ -I ./$(INCLUDE_dir)
 LDIR = -L /usr/lib/ -L /usr/local/lib/ -L ./$(OBJ_dir) 
 LIBS= -lm

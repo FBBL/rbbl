@@ -75,29 +75,29 @@ int get_seed()
     return 0;
 }
 
- /* return 1 if the given array is all zero */
-// int checkzero(char *string, int length) {
-//     int is_zero;
-//     __asm__ (
-//         "cld\n"
-//         "xorb %%al, %%al\n"
-//         "repz scasb\n"
-//         : "=c" (is_zero)
-//         : "c" (length), "D" (string)
-//         : "eax", "cc"
-//     );
-//     return !is_zero;
-// }
-
 /* return 1 if the given array is all zero */
 int checkzero(char *string, int length) {
-    for (int i = 0; i < length; ++i)
-    {
-        if (string!= 0)
-            return 0;
-    }
-    return 1;
+    int is_zero;
+    __asm__ (
+        "cld\n"
+        "xorb %%al, %%al\n"
+        "repz scasb\n"
+        : "=c" (is_zero)
+        : "c" (length), "D" (string)
+        : "eax", "cc"
+    );
+    return !is_zero;
 }
+
+/* return 1 if the given array is all zero */
+// int checkzero(char *string, int length) {
+//     for (int i = 0; i < length; ++i)
+//     {
+//         if (string!= 0)
+//             return 0;
+//     }
+//     return 1;
+// }
 
 
 #endif

@@ -73,7 +73,7 @@ int main()
     int p_step[NUM_REDUCTION_STEPS] =                 {1,     1,    1,    1,   1,    1,    1,    5,    9,   13,   22,   38,   43};
     int p1_step[NUM_REDUCTION_STEPS] =                {90,   10,    1,   90,  10,    1,   75,   81,   14,  140,  115,  800, 1601};
     int prev_p1_step[NUM_REDUCTION_STEPS] =           {-1,   90,   10,   -1,  90,   10,   -1,   75,   81,   14,  140,  115,  800};
-    int un_selection[NUM_REDUCTION_STEPS] =           {0,     0,    0,    0,   0,    0,    0,    0,    0,    0,   60,   60,   60};
+    int un_selection[NUM_REDUCTION_STEPS] =           {0,     0,    0,    0,   0,    0,    0,    0,    0,    0,   40,   40,   40};
 
     bkwStepParameters bkwStepPar[NUM_REDUCTION_STEPS];
     /* Set steps: smooth LMS */

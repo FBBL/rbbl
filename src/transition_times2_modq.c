@@ -24,8 +24,8 @@ int sample_times2_modq(sample *dstSample, sample *srcSample, lweInstance *lwe, b
     int n = lwe->n;
     int q = lwe->q;
     for (int i=0; i<n; i++)
-        dstSample->a[i] = (2*srcSample->a[i]) % q;
-    dstSample->z = (2*srcSample->z) % q;
+        dstSample->a[i] = (srcSample->a[i] << 1) % q;
+    dstSample->z = (srcSample->z << 1) % q;
     // dstSample->error = (2*srcSample->error) % q;
 
     int index = position_values_2_category_index(lwe, bkwStepPar, dstSample->a);

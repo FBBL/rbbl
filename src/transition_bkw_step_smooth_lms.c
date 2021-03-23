@@ -23,20 +23,12 @@
 
 static u64 subtractSamples(lweInstance *lwe, sample *outSample, sample *sample1, sample *sample2, bkwStepParameters *dstBkwStepPar, bkwStepParameters *srcBkwStepPar)
 {
-    int n = lwe->n;
     int q = lwe->q;
 
-    int startIndex = dstBkwStepPar->startIndex;
-    int numPositions = dstBkwStepPar->numPositions;
-
-    for (int i=0; i < n; i++)
-        outSample->a[i] = diffTable(sample1->a[i], sample2->a[i]);
-    outSample->z = diffTable(sample1->z, sample2->z);
+    for (int i=0; i < lwe->n; i++)
+        outSample->a[i] = (sample1->a[i] - sample2->a[i] + q) %q;//     diffTable(sample1->a[i], sample2->a[i]);
+    outSample->z = (sample1->z - sample2->z + q) %q;
     // outSample->error = diffTable(sample1->error, sample2->error);
-
-    int tmp;
-    for (int i = srcBkwStepPar->startIndex; i < srcBkwStepPar->startIndex + srcBkwStepPar->numPositions; ++i)
-        tmp = outSample->a[i] < q/2 ? outSample->a[i] : (int)outSample->a[i] -q;
 
     u64 index = position_values_2_category_index(lwe, dstBkwStepPar, outSample->a + dstBkwStepPar->startIndex);
 
@@ -48,17 +40,10 @@ static u64 addSamples(lweInstance *lwe, sample *outSample, sample *sample1, samp
     int n = lwe->n;
     int q = lwe->q;
 
-    int startIndex = dstBkwStepPar->startIndex;
-    int numPositions = dstBkwStepPar->numPositions;
-
     for (int i=0; i < n; i++)
-        outSample->a[i] = sumTable(sample1->a[i], sample2->a[i]);
-    outSample->z = sumTable(sample1->z, sample2->z);
+        outSample->a[i] = (sample1->a[i] + sample2->a[i]) % q;//sumTable(sample1->a[i], sample2->a[i]);
+    outSample->z = (sample1->z + sample2->z) % q;//sumTable(sample1->z, sample2->z);
     // outSample->error = sumTable(sample1->error, sample2->error);
-
-    int tmp;
-    for (int i = srcBkwStepPar->startIndex; i < srcBkwStepPar->startIndex + srcBkwStepPar->numPositions; ++i)
-        tmp = outSample->a[i] < q/2 ? outSample->a[i] : (int)outSample->a[i] -q;
 
     u64 index = position_values_2_category_index(lwe, dstBkwStepPar, outSample->a + dstBkwStepPar->startIndex);
 

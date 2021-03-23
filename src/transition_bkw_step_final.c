@@ -23,12 +23,11 @@
 
 static u64 subtractSamples(lweInstance *lwe, sample *outSample, sample *sample1, sample *sample2)
 {
-    int n = lwe->n;
     int q = lwe->q;
 
-    for (int i=0; i < n; i++)
-        outSample->a[i] = diffTable(sample1->a[i], sample2->a[i]);
-    outSample->z = diffTable(sample1->z, sample2->z);
+    for (int i=0; i < lwe->n; i++)
+        outSample->a[i] = (sample1->a[i] - sample2->a[i] + q) %q;//     diffTable(sample1->a[i], sample2->a[i]);
+    outSample->z = (sample1->z - sample2->z + q) %q;
     // outSample->error = diffTable(sample1->error, sample2->error);
 
     return 0;
@@ -36,12 +35,11 @@ static u64 subtractSamples(lweInstance *lwe, sample *outSample, sample *sample1,
 
 static int addSamples(lweInstance *lwe, sample *outSample, sample *sample1, sample *sample2)
 {
-    int n = lwe->n;
     int q = lwe->q;
 
-    for (int i=0; i < n; i++)
-        outSample->a[i] = sumTable(sample1->a[i], sample2->a[i]);
-    outSample->z = sumTable(sample1->z, sample2->z);
+    for (int i=0; i < lwe->n; i++)
+        outSample->a[i] = (sample1->a[i] + sample2->a[i]) % q;//sumTable(sample1->a[i], sample2->a[i]);
+    outSample->z = (sample1->z + sample2->z) % q;//sumTable(sample1->z, sample2->z);
     // outSample->error = sumTable(sample1->error, sample2->error);
 
     return 0;

@@ -45,18 +45,17 @@ int main()
 
     time_stamp("Precomputation");
     precompute_cdf_table(alpha*q);
+    // if (createSumAndDiffTables(lwe.q)){
+    //     printf("ERROR precomputing Sums and Diffs tables\n");
+    //     return 0;
+    // }
+
+    time_stamp("Create LWE instance");
     lwe_init(&lwe, n, q, alpha);
-    if (createSumAndDiffTables(lwe.q)){
-        printf("ERROR precomputing Sums and Diffs tables\n");
-        return 0;
-    }
 
-    time_stamp("LWE instance created");
-
+    time_stamp("Generate %llu samples", n_samples);
     samplesList Samples;
     create_lwe_samples(&Samples, &lwe, n_samples);
-
-    time_stamp("Samples allocated: %ld", n_samples);
 
     int start_index[NUM_REDUCTION_STEPS] =            {0,    2,   4,   6,   8,  11,  13,  16};
     int len_step[NUM_REDUCTION_STEPS] =               {2,    2,   2,   2,   2,   2,   3,   4};

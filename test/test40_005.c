@@ -45,11 +45,10 @@ int main()
 
     time_stamp("Precomputation");
     precompute_cdf_table(alpha*q);
-    lwe_init(&lwe, n, q, alpha);
-    if (createSumAndDiffTables(lwe.q)){
-        printf("ERROR precomputing Sums and Diffs tables\n");
-        return 0;
-    }
+    // if (createSumAndDiffTables(lwe.q)){
+    //     printf("ERROR precomputing Sums and Diffs tables\n");
+    //     return 0;
+    // }
 
 //                                                    0      1     2    3    4    5    6    7    8    9   10    11    12
     // BRUTEFORCE = 3
@@ -92,6 +91,9 @@ int main()
 
     // exit(0);
 
+    time_stamp("Create LWE instance");
+    lwe_init(&lwe, n, q, alpha);
+
     int bf_positions = BRUTE_FORCE_POSITIONS;
     int zero_positions = ZERO_POSITIONS;
     int fwht_positions = lwe.n - zero_positions - bf_positions;
@@ -99,13 +101,10 @@ int main()
     u8 binary_solution[fwht_positions];
     short bf_solution[bf_positions];
 
-    time_stamp("LWE instance created");
+    time_stamp("Generate %llu samples", n_samples);
 
     samplesList Samples;
     create_lwe_samples(&Samples, &lwe, n_samples);
-
-    time_stamp("Samples allocated");
-
 
     time_stamp("Start reduction phase");
 

@@ -73,6 +73,8 @@ int main()
 
     bkwStepParameters bkwStepPar[NUM_REDUCTION_STEPS];
     /* Set steps: smooth LMS */
+    u64 max_categories = 0, tmp_categories;
+
     for (int i=0; i<NUM_REDUCTION_STEPS; i++)
     {
         bkwStepPar[i].startIndex = start_index[i];// i == 0 ? 0 : bkwStepPar[i-1].startIndex + bkwStepPar[i-1].numPositions;
@@ -83,7 +85,10 @@ int main()
         bkwStepPar[i].prev_p1 = prev_p1_step[i];// i ==  0 ? -1 : bkwStepPar[i-1].p1;
         bkwStepPar[i].un_selection = un_selection[i];
         ASSERT(bkwStepPar[i].p2 != 0, "smooth-LMS p2 parameter not valid");
-        printf("step %d categories %llu\n", i, num_categories(&lwe, &bkwStepPar[i]));
+        tmp_categories = num_categories(&lwe, &bkwStepPar[i]);
+        printf("step %d categories %llu\n", i, tmp_categories);
+        if (tmp_categories > max_categories)
+            max_categories = tmp_categories;
     }
     // exit(0);
 
@@ -105,6 +110,8 @@ int main()
 
     sortedSamplesList *srcSamples, *dstSamples, *tmpSamples;
 
+    allocate_sorted_samples_list(&sortedSamples1, &lwe, &bkwStepPar[0], Samples.n_samples, max_categories);
+
     /* multiply times 2 mod q and sort (unsorted) samples */
     time_stamp("Multiply samples times 2 modulo q");
     int ret = transition_times2_modq(&lwe, &bkwStepPar[0], &sortedSamples1, &Samples);
@@ -116,6 +123,8 @@ int main()
     srcSamples = &sortedSamples1;
     dstSamples = &sortedSamples2;
 
+    allocate_sorted_samples_list(dstSamples, &lwe, &bkwStepPar[1], srcSamples->n_samples, max_categories);
+
     // perform smooth LMS steps
     int numReductionSteps = NUM_REDUCTION_STEPS;
     for (int i=0; i<numReductionSteps-1; i++){
@@ -123,11 +132,17 @@ int main()
     	time_stamp("Perform smooth LMS reduction step %d/%d", i+1, numReductionSteps);
         ret = transition_bkw_step_smooth_lms(&lwe, &bkwStepPar[i], &bkwStepPar[i+1], srcSamples, dstSamples);
 
-        // clean past list
-        tmpSamples = srcSamples;
-        free_sorted_samples(tmpSamples);
-        srcSamples = dstSamples;
-        dstSamples = tmpSamples;
+        if(i != numReductionSteps-2){
+            // clean past list
+            tmpSamples = srcSamples;
+            clean_sorted_samples(tmpSamples);
+            srcSamples = dstSamples;
+            dstSamples = tmpSamples;
+        } else {
+            free_sorted_samples(srcSamples, max_categories);
+            srcSamples = dstSamples;
+        }
+
         time_stamp("Number of samples: %d - %d samples per category", srcSamples->n_samples, srcSamples->n_samples_per_category);
     }
 
@@ -139,8 +154,7 @@ int main()
     time_stamp("Number of samples: %d", Samples.n_samples);
 
     // clean past list
-    tmpSamples = srcSamples;
-    free_sorted_samples(tmpSamples);
+    free_sorted_samples(srcSamples, max_categories);
 
     /* compute binary secret */
     u8 original_binary_secret[lwe.n];

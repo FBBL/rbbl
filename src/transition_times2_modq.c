@@ -37,8 +37,6 @@ int sample_times2_modq(sample *dstSample, sample *srcSample, lweInstance *lwe, b
 int transition_times2_modq(lweInstance *lwe, bkwStepParameters *bkwStepPar, sortedSamplesList *sortedSamples, samplesList* unsortedSamples)
 {
 
-    allocate_sorted_samples_list(sortedSamples, lwe, bkwStepPar, unsortedSamples->n_samples);
-
     sample tmpSample;
     tmpSample.a = calloc(lwe->n, sizeof(u16));
 
@@ -61,8 +59,6 @@ int transition_times2_modq(lweInstance *lwe, bkwStepParameters *bkwStepPar, sort
                     printf("ERROR: category %llu tot categories %llu \n", category, sortedSamples->n_categories );
                     exit(0);
                 }
-                
-                sortedSamples->list_categories[category].list[n_samples_in_category].a = calloc(lwe->n, sizeof(u16));
                 memcpy(sortedSamples->list_categories[category].list[n_samples_in_category].a, tmpSample.a, lwe->n*sizeof(u16));
                 sortedSamples->list_categories[category].list[n_samples_in_category].z = tmpSample.z;
                 // sortedSamples->list_categories[category].list[n_samples_in_category].error = tmpSample.error;

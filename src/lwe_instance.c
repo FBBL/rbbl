@@ -22,6 +22,7 @@
 #include <time.h>
 
 #define LEN_MAX_CDF 200
+#define SAMPLES_PER_CATEGORY 6
 
 static u32 CDF_TABLE[LEN_MAX_CDF];
 
@@ -167,11 +168,11 @@ void free_samples(samplesList *Samples){
 }
 
 /* free sortedSamplesList */
-void free_sorted_samples(sortedSamplesList *Samples){
+void free_sorted_samples(sortedSamplesList *Samples, u64 max_categories){
 
-    for (int i = 0; i < Samples->n_categories; i++)
+    for (int i = 0; i < max_categories; i++)
     {
-        for (int j = 0; j < Samples->list_categories[i].n_samples; j++)
+        for (int j = 0; j < SAMPLES_PER_CATEGORY; j++)
             free(Samples->list_categories[i].list[j].a);
         free(Samples->list_categories[i].list);
         Samples->list_categories[i].n_samples = 0;
@@ -183,6 +184,16 @@ void free_sorted_samples(sortedSamplesList *Samples){
     Samples->max_samples = 0;
     Samples->n_categories = 0;
 
+}
+
+void clean_sorted_samples(sortedSamplesList *Samples){
+
+    for (int i = 0; i < Samples->n_categories; i++)
+        Samples->list_categories[i].n_samples = 0;
+
+    Samples->n_samples = 0;
+    Samples->max_samples = 0;
+    Samples->n_categories = 0;
 }
 
 
@@ -232,23 +243,35 @@ u64 num_categories(lweInstance *lwe, bkwStepParameters *bkwStepPar)
 
 
 /* allocate memory for sorted samples. n_samples is the nuber of total sampels in input before sorting/bkwstep */
-void allocate_sorted_samples_list(sortedSamplesList *Samples, lweInstance *lwe, bkwStepParameters *bkwStepPar, int n_samples){
+void allocate_sorted_samples_list(sortedSamplesList *Samples, lweInstance *lwe, bkwStepParameters *bkwStepPar, u64 n_samples, u64 max_categories){
 
     // careful with the following setting... could be modified
     Samples->n_categories = num_categories(lwe, bkwStepPar);
-    Samples->n_samples_per_category = 5*ceil((double)n_samples/Samples->n_categories)+1; // no need to store too many samples for each category
+    Samples->n_samples_per_category = SAMPLES_PER_CATEGORY;//5*ceil((double)n_samples/Samples->n_categories)+1; // no need to store too many samples for each category
     ASSERT(Samples->n_samples_per_category >= 2, "Not enough samples");
+
     Samples->max_samples = n_samples + ceil(0.05*n_samples); // allow some more samples at each step
 
-    Samples->list_categories = calloc(Samples->n_categories, sizeof(category));
+    Samples->list_categories = calloc(max_categories, sizeof(category));
     ASSERT(Samples->list_categories != NULL, "Failed allocation");
-    for (int i = 0; i < Samples->n_categories; ++i){
+    for (int i = 0; i < max_categories; ++i){
         Samples->list_categories[i].list = calloc(Samples->n_samples_per_category, sizeof(sample));
         ASSERT(Samples->list_categories[i].list != NULL, "Failed allocation");
+        for (int j = 0; j < Samples->n_samples_per_category; j++)
+            Samples->list_categories[i].list[j].a = malloc(lwe->n*sizeof(u16));
     }
     Samples->n_samples = 0;
 }
 
+/* allocate memory for sorted samples. n_samples is the nuber of total sampels in input before sorting/bkwstep */
+void set_sorted_samples_list(sortedSamplesList *Samples, lweInstance *lwe, bkwStepParameters *bkwStepPar, int n_samples){
+
+    // careful with the following setting... could be modified
+    Samples->n_categories = num_categories(lwe, bkwStepPar);
+    Samples->n_samples_per_category = SAMPLES_PER_CATEGORY; // no need to store too many samples for each category
+    Samples->max_samples = n_samples + ceil(0.05*n_samples); // allow some more samples at each step
+    Samples->n_samples = 0;
+}
 
 
 

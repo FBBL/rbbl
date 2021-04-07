@@ -14,7 +14,7 @@ MD=mkdir
 CFLAGS= -std=c11 -O3 # -fsanitize=address -g -fno-omit-frame-pointer # -m64 -Wformat=0 -Wno-unused-function -Wno-unused-result -D_FILE_OFFSET_BITS=64 -DDEBUG -D_DEBUG -pedantic
 IDIR = -I /usr/include -I /usr/local/include/ -I ./$(INCLUDE_dir)
 LDIR = -L /usr/lib/ -L /usr/local/lib/ -L ./$(OBJ_dir) 
-LIBS= -lm -fopenmp
+LIBS= -lm -lpthread
 
 # headers
 _HEADER_files = config.h  utils.h  lwe_instance.h transition_times2_modq.h position_values_2_category_index.h transition_bkw_step_smooth_lms.h lookup_tables.h transition_bkw_step_final.h solve_fwht.h random_utils.h

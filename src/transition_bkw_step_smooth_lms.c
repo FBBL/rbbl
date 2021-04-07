@@ -126,11 +126,7 @@ int transition_bkw_step_smooth_lms(lweInstance *lwe, bkwStepParameters *srcBkwSt
     int count = index2;
 
     /* process samples with LF2 method */
-    for (count = (index2+1)/2; i < (srcSamples->n_categories+1)/2; count++)
-    {
-        /* code */
-    }
-    // while (index2 < srcSamples->n_categories && dstSamples->n_samples < dstSamples->max_samples)
+    while (index2 < srcSamples->n_categories && dstSamples->n_samples < dstSamples->max_samples)
     {
         // process single category
         for (int i = 0; i < srcSamples->list_categories[index1].n_samples; i++)

@@ -30,7 +30,7 @@
 #define NUM_REDUCTION_STEPS 8
 #define BRUTE_FORCE_POSITIONS 0
 #define ZERO_POSITIONS 11
-#define N_THREADS 8
+#define N_THREADS 2
 
 int main()
 {

@@ -15,8 +15,24 @@
  */
 
 #include "transition_times2_modq.h"
-#include "omp.h"
 #include <string.h>
+#include <pthread.h>
+
+#define MAX_NUM_THREADS 16
+
+// global variables
+typedef struct {
+    lweInstance *lwe;
+    bkwStepParameters *bkwStepPar;
+    sortedSamplesList *sortedSamples;
+    samplesList* unsortedSamples;
+    u64 min;
+    u64 max;
+} Params;
+
+/* define mutexes to protect common resources from concurrent access */
+static pthread_mutex_t screen_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t save_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /* perform multiplication times 2 mod q of srcSample and store in dstSample. return the category */
 int sample_times2_modq(sample *dstSample, sample *srcSample, lweInstance *lwe, bkwStepParameters *bkwStepPar)
@@ -33,50 +49,95 @@ int sample_times2_modq(sample *dstSample, sample *srcSample, lweInstance *lwe, b
     return index;
 }
 
-/* multiply each sample times 2 mod q in sortedSamples. Then store the result in dstSortedSamplesList according to its category */
-int transition_times2_modq(lweInstance *lwe, bkwStepParameters *bkwStepPar, sortedSamplesList *sortedSamples, samplesList* unsortedSamples, int n_threads)
-{
+void *single_thread_work(void *params){
 
-    omp_set_num_threads(n_threads);
+    Params *p = (Params*)params;
 
     sample tmpSample;
     u64 count = 0, category;
     int n_samples_in_category;
 
-#pragma omp parallel private(tmpSample, category, n_samples_in_category, count)
-{
-    tmpSample.a = calloc(lwe->n, sizeof(u16));
+    tmpSample.a = calloc(p->lwe->n, sizeof(u16));
 
-#pragma omp for
-    for(count = 0; count < unsortedSamples->n_samples; count++){
+    for(count = p->min; count < p->max; count++)
+    {
+        category = sample_times2_modq(&tmpSample, &p->unsortedSamples->list[count], p->lwe, p->bkwStepPar);
+        n_samples_in_category = p->sortedSamples->list_categories[category].n_samples;
 
-        category = sample_times2_modq(&tmpSample, &unsortedSamples->list[count], lwe, bkwStepPar);
-        n_samples_in_category = sortedSamples->list_categories[category].n_samples;
-
-        if (n_samples_in_category < sortedSamples->n_samples_per_category && sortedSamples->n_samples < sortedSamples->max_samples)
+        if (n_samples_in_category < p->sortedSamples->n_samples_per_category && p->sortedSamples->n_samples < p->sortedSamples->max_samples)
         {
-            if (!checkzero((char*)tmpSample.a, sizeof(u16)*lwe->n))
+            pthread_mutex_lock(&save_mutex);
+            if (!checkzero((char*)tmpSample.a, sizeof(u16)*(p->lwe->n)))
             {
-#pragma omp critical
-{
-                if (category > sortedSamples->n_categories)
+                if (category > p->sortedSamples->n_categories)
                 {
-                    printf("ERROR: category %llu tot categories %llu \n", category, sortedSamples->n_categories );
+                    printf("ERROR: category %llu tot categories %llu \n", category, p->sortedSamples->n_categories );
                     exit(0);
                 }
-                memcpy(sortedSamples->list_categories[category].list[n_samples_in_category].a, tmpSample.a, lwe->n*sizeof(u16));
-                sortedSamples->list_categories[category].list[n_samples_in_category].z = tmpSample.z;
+                memcpy(p->sortedSamples->list_categories[category].list[n_samples_in_category].a, tmpSample.a, p->lwe->n*sizeof(u16));
+                p->sortedSamples->list_categories[category].list[n_samples_in_category].z = tmpSample.z;
                 // sortedSamples->list_categories[category].list[n_samples_in_category].error = tmpSample.error;
-                sortedSamples->list_categories[category].n_samples++;
-                sortedSamples->n_samples++;
-}
+                p->sortedSamples->list_categories[category].n_samples++;
+                p->sortedSamples->n_samples++;
             }
+            pthread_mutex_unlock(&save_mutex);
         }
     }
 
     free(tmpSample.a);
 }
-    return 1;
+
+
+/* multiply each sample times 2 mod q in sortedSamples. Then store the result in dstSortedSamplesList according to its category */
+int transition_times2_modq(lweInstance *lwe, bkwStepParameters *bkwStepPar, sortedSamplesList *sortedSamples, samplesList* unsortedSamples, int n_threads)
+{
+
+    ASSERT(n_threads >= 1, "Unexpected number of threads!");
+    ASSERT(n_threads <= MAX_NUM_THREADS, "Too many threads!");
+
+    pthread_t thread[n_threads];
+    Params param[n_threads]; /* one set of in-/output paramaters per thread, so no need to lock these */
+
+    u64 min, max;
+
+    /* load input parameters */
+    for (int i=0; i<n_threads; i++) {
+        param[i].lwe = lwe; /* set input parameter to thread number */
+        param[i].bkwStepPar = bkwStepPar;
+        param[i].sortedSamples = sortedSamples;
+        param[i].unsortedSamples = unsortedSamples;
+        param[i].min = i*(unsortedSamples->n_samples/n_threads);
+        param[i].max = (i+1)*(unsortedSamples->n_samples/n_threads);
+    }
+    param[n_threads-1].max = unsortedSamples->n_samples;
+
+
+    /* start threads */
+    for (int i = 0; i < n_threads; ++i)
+    {
+        if (!pthread_create(&thread[i], NULL, single_thread_work, (void*)&param[i])) {
+            // pthread_mutex_lock(&screen_mutex);
+            // printf("Thread %d created!\n", i+1);
+            // pthread_mutex_unlock(&screen_mutex);
+        } else {
+            // pthread_mutex_lock(&screen_mutex);
+            // printf("Error creating thread %d!\n", i+1);
+            // pthread_mutex_unlock(&screen_mutex);
+        }
+    }
+
+    /* wait until all threads have completed */
+    for (int i = 0; i < n_threads; i++) {
+        if (!pthread_join(thread[i], NULL)) {
+            // pthread_mutex_lock(&screen_mutex);
+            // printf("Thread %d joined!\n", i+1);
+            // pthread_mutex_unlock(&screen_mutex);
+        } else {
+            // pthread_mutex_lock(&screen_mutex);
+            // printf("Error joining thread %d!\n", i+1);
+            // pthread_mutex_unlock(&screen_mutex);
+        }
+    }
 
 }
 

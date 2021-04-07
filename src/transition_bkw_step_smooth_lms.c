@@ -75,7 +75,22 @@ int transition_bkw_step_smooth_lms(lweInstance *lwe, bkwStepParameters *srcBkwSt
                 
                 if (category > dstSamples->n_categories || category < 0)
                 {
-                    printf("ERROR: category %llu tot categories %llu \n", category, dstSamples->n_categories );
+                    printf("SAMPLE 1\n");
+                    for (int l = 0; l < lwe->n; ++l)
+                    {
+                        printf("%d ", srcSamples->list_categories[0].list[i].a[l]);
+                    } printf(")\n");
+                    printf("SAMPLE 2\n");
+                    for (int l = 0; l < lwe->n; ++l)
+                    {
+                        printf("%d ", srcSamples->list_categories[0].list[j].a[l]);
+                    } printf(")\n");
+                    printf("SAMPLE \n(");
+                    for (int l = 0; l < lwe->n; ++l)
+                    {
+                        printf("%d ", tmpSample.a[l]);
+                    } printf(")\n");
+                    printf("ERROR subtractSamples: category %llu tot categories %llu \n", category, dstSamples->n_categories );
                     exit(0);
                 }
 
@@ -108,8 +123,14 @@ int transition_bkw_step_smooth_lms(lweInstance *lwe, bkwStepParameters *srcBkwSt
         index2 = 1;
     }
 
+    int count = index2;
+
     /* process samples with LF2 method */
-    while (index2 < srcSamples->n_categories && dstSamples->n_samples < dstSamples->max_samples)
+    for (count = (index2+1)/2; i < (srcSamples->n_categories+1)/2; count++)
+    {
+        /* code */
+    }
+    // while (index2 < srcSamples->n_categories && dstSamples->n_samples < dstSamples->max_samples)
     {
         // process single category
         for (int i = 0; i < srcSamples->list_categories[index1].n_samples; i++)
@@ -120,7 +141,22 @@ int transition_bkw_step_smooth_lms(lweInstance *lwe, bkwStepParameters *srcBkwSt
                 
                 if (category > dstSamples->n_categories || category < 0)
                 {
-                    printf("ERROR: category %llu tot categories %llu \n", category, dstSamples->n_categories );
+                    printf("SAMPLE 1\n");
+                    for (int l = 0; l < lwe->n; ++l)
+                    {
+                        printf("%d ", srcSamples->list_categories[0].list[i].a[l]);
+                    } printf(")\n");
+                    printf("SAMPLE 2\n");
+                    for (int l = 0; l < lwe->n; ++l)
+                    {
+                        printf("%d ", srcSamples->list_categories[0].list[j].a[l]);
+                    } printf(")\n");
+                    printf("SAMPLE \n(");
+                    for (int l = 0; l < lwe->n; ++l)
+                    {
+                        printf("%d ", tmpSample.a[l]);
+                    } printf(")\n");
+                    printf("ERROR subtractSamples: category %llu tot categories %llu \n", category, dstSamples->n_categories );
                     exit(0);
                 }
 
@@ -154,7 +190,22 @@ int transition_bkw_step_smooth_lms(lweInstance *lwe, bkwStepParameters *srcBkwSt
 
                 if (category > dstSamples->n_categories || category < 0)
                 {
-                    printf("ERROR: category %llu tot categories %llu \n", category, dstSamples->n_categories );
+                    printf("SAMPLE 1\n");
+                    for (int l = 0; l < lwe->n; ++l)
+                    {
+                        printf("%d ", srcSamples->list_categories[0].list[i].a[l]);
+                    } printf(")\n");
+                    printf("SAMPLE 2\n");
+                    for (int l = 0; l < lwe->n; ++l)
+                    {
+                        printf("%d ", srcSamples->list_categories[0].list[j].a[l]);
+                    } printf(")\n");
+                    printf("SAMPLE \n(");
+                    for (int l = 0; l < lwe->n; ++l)
+                    {
+                        printf("%d ", tmpSample.a[l]);
+                    } printf(")\n");
+                    printf("ERROR subtractSamples: category %llu tot categories %llu \n", category, dstSamples->n_categories );
                     exit(0);
                 }
          
@@ -188,7 +239,22 @@ int transition_bkw_step_smooth_lms(lweInstance *lwe, bkwStepParameters *srcBkwSt
 
                 if (category > dstSamples->n_categories || category < 0)
                 {
-                    printf("ERROR: category %llu tot categories %llu \n", category, dstSamples->n_categories );
+                    printf("SAMPLE 1\n");
+                    for (int l = 0; l < lwe->n; ++l)
+                    {
+                        printf("%d ", srcSamples->list_categories[0].list[i].a[l]);
+                    } printf(")\n");
+                    printf("SAMPLE 2\n");
+                    for (int l = 0; l < lwe->n; ++l)
+                    {
+                        printf("%d ", srcSamples->list_categories[0].list[j].a[l]);
+                    } printf(")\n");
+                    printf("SAMPLE \n(");
+                    for (int l = 0; l < lwe->n; ++l)
+                    {
+                        printf("%d ", tmpSample.a[l]);
+                    } printf(")\n");
+                    printf("ERROR addSamples: category %llu tot categories %llu \n", category, dstSamples->n_categories );
                     exit(0);
                 }
                 

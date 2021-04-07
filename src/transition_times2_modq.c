@@ -15,7 +15,7 @@
  */
 
 #include "transition_times2_modq.h"
-
+#include "omp.h"
 #include <string.h>
 
 /* perform multiplication times 2 mod q of srcSample and store in dstSample. return the category */
@@ -34,26 +34,31 @@ int sample_times2_modq(sample *dstSample, sample *srcSample, lweInstance *lwe, b
 }
 
 /* multiply each sample times 2 mod q in sortedSamples. Then store the result in dstSortedSamplesList according to its category */
-int transition_times2_modq(lweInstance *lwe, bkwStepParameters *bkwStepPar, sortedSamplesList *sortedSamples, samplesList* unsortedSamples)
+int transition_times2_modq(lweInstance *lwe, bkwStepParameters *bkwStepPar, sortedSamplesList *sortedSamples, samplesList* unsortedSamples, int n_threads)
 {
 
-    sample tmpSample;
-    tmpSample.a = calloc(lwe->n, sizeof(u16));
+    omp_set_num_threads(n_threads);
 
+    sample tmpSample;
     u64 count = 0, category;
     int n_samples_in_category;
 
+#pragma omp parallel private(tmpSample, category, n_samples_in_category, count)
+{
+    tmpSample.a = calloc(lwe->n, sizeof(u16));
 
-    while(count < unsortedSamples->n_samples){
+#pragma omp for
+    for(count = 0; count < unsortedSamples->n_samples; count++){
 
         category = sample_times2_modq(&tmpSample, &unsortedSamples->list[count], lwe, bkwStepPar);
-
         n_samples_in_category = sortedSamples->list_categories[category].n_samples;
 
         if (n_samples_in_category < sortedSamples->n_samples_per_category && sortedSamples->n_samples < sortedSamples->max_samples)
         {
             if (!checkzero((char*)tmpSample.a, sizeof(u16)*lwe->n))
             {
+#pragma omp critical
+{
                 if (category > sortedSamples->n_categories)
                 {
                     printf("ERROR: category %llu tot categories %llu \n", category, sortedSamples->n_categories );
@@ -64,13 +69,13 @@ int transition_times2_modq(lweInstance *lwe, bkwStepParameters *bkwStepPar, sort
                 // sortedSamples->list_categories[category].list[n_samples_in_category].error = tmpSample.error;
                 sortedSamples->list_categories[category].n_samples++;
                 sortedSamples->n_samples++;
+}
             }
         }
-        count++;
     }
 
     free(tmpSample.a);
-
+}
     return 1;
 
 }

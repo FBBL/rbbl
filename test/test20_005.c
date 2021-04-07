@@ -30,6 +30,7 @@
 #define NUM_REDUCTION_STEPS 8
 #define BRUTE_FORCE_POSITIONS 0
 #define ZERO_POSITIONS 11
+#define N_THREADS 8
 
 int main()
 {
@@ -114,7 +115,7 @@ int main()
 
     /* multiply times 2 mod q and sort (unsorted) samples */
     time_stamp("Multiply samples times 2 modulo q");
-    int ret = transition_times2_modq(&lwe, &bkwStepPar[0], &sortedSamples1, &Samples);
+    int ret = transition_times2_modq(&lwe, &bkwStepPar[0], &sortedSamples1, &Samples, N_THREADS);
     time_stamp("Number of samples: %d - %d samples per category", sortedSamples1.n_samples, sortedSamples1.n_samples_per_category);
 
     // free original samples - save up memory

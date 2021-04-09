@@ -30,7 +30,7 @@
 #define NUM_REDUCTION_STEPS 13
 #define BRUTE_FORCE_POSITIONS 0
 #define ZERO_POSITIONS 18
-#define N_THREADS 6
+#define N_THREADS 16
 
 int main()
 {
@@ -46,10 +46,17 @@ int main()
 
     time_stamp("Precomputation");
     precompute_cdf_table(alpha*q);
+    // if (createSumAndDiffTables(lwe.q)){
+    //     printf("ERROR precomputing Sums and Diffs tables\n");
+    //     return 0;
+    // }
 
     time_stamp("Create LWE instance");
     lwe_init(&lwe, n, q, alpha);
 
+    time_stamp("Generate %lu samples", n_samples);
+    samplesList Samples;
+    create_lwe_samples(&Samples, &lwe, n_samples);
 
 //                                                        0      1     2     3    4     5     6     7     8     9    10    11    12
     // int start_index[NUM_REDUCTION_STEPS] =            {0,     2,    4,    7,   9,   11,   14,   16,   19,   22,   26,   30,   35};
@@ -83,7 +90,7 @@ int main()
         bkwStepPar[i].un_selection = un_selection[i];
         ASSERT(bkwStepPar[i].p2 != 0, "smooth-LMS p2 parameter not valid");
         tmp_categories = num_categories(&lwe, &bkwStepPar[i]);
-        printf("step %d categories %llu\n", i, tmp_categories);
+        printf("step %d categories %lu\n", i, tmp_categories);
         if (tmp_categories > max_categories)
             max_categories = tmp_categories;
     }
@@ -92,10 +99,6 @@ int main()
     int bruteForcePositions = BRUTE_FORCE_POSITIONS;
     int fwht_positions = lwe.n - ZERO_POSITIONS;
     int zero_positions = ZERO_POSITIONS;
-
-    time_stamp("Generate %llu samples", n_samples);
-    samplesList Samples;
-    create_lwe_samples(&Samples, &lwe, n_samples);
 
     u8 binary_solution[fwht_positions];
     short bf_solution[bruteForcePositions];
@@ -130,8 +133,8 @@ int main()
     int numReductionSteps = NUM_REDUCTION_STEPS;
     for (int i=0; i<numReductionSteps-1; i++){
 
-    	time_stamp("Perform smooth LMS reduction step %d/%d", i+1, numReductionSteps);
-        ret = transition_bkw_step_smooth_lms(&lwe, &bkwStepPar[i], &bkwStepPar[i+1], srcSamples, dstSamples);
+        time_stamp("Perform smooth LMS reduction step %d/%d", i+1, numReductionSteps);
+        ret = transition_bkw_step_smooth_lms(&lwe, &bkwStepPar[i+1], srcSamples, dstSamples, N_THREADS);
 
         if(i != numReductionSteps-2){
             // clean past list
@@ -159,13 +162,18 @@ int main()
 
     /* compute binary secret */
     u8 original_binary_secret[lwe.n];
+    // printf("(");
     for (int i = 0; i < lwe.n; ++i)
     {
+        // printf("%d ", lwe.s[i]);
         if (lwe.s[i] < q/2)
             original_binary_secret[i] = lwe.s[i] % 2;
         else
             original_binary_secret[i] = (lwe.s[i]+1) % 2;
     }
+    // printf(")\n");
+
+    freeSumAndDiffTables();
 
     /* Solving phase - using Fast Walsh Hadamard Tranform */
 

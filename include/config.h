@@ -26,4 +26,6 @@
 #define u32 uint32_t
 #define u64 uint64_t
 
+#define MAX_NUM_THREADS 16
+
 #endif

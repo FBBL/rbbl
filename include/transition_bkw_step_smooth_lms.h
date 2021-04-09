@@ -22,6 +22,6 @@
 #include "utils.h"
 #include "lookup_tables.h"
 
-int transition_bkw_step_smooth_lms(lweInstance *lwe, bkwStepParameters *srcBkwStepPar, bkwStepParameters *dstBkwStepPar, sortedSamplesList *srcSamples, sortedSamplesList *dstSamples);
+int transition_bkw_step_smooth_lms(lweInstance *lwe, bkwStepParameters *dstBkwStepPar, sortedSamplesList *srcSamples, sortedSamplesList *dstSamples, int numThreads);
 
 #endif /* TRANSITION_BKW_STEP_SMOOTH_LMS_H */

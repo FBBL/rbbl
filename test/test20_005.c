@@ -30,7 +30,7 @@
 #define NUM_REDUCTION_STEPS 8
 #define BRUTE_FORCE_POSITIONS 0
 #define ZERO_POSITIONS 11
-#define N_THREADS 2
+#define N_THREADS 8
 
 int main()
 {
@@ -54,7 +54,7 @@ int main()
     time_stamp("Create LWE instance");
     lwe_init(&lwe, n, q, alpha);
 
-    time_stamp("Generate %llu samples", n_samples);
+    time_stamp("Generate %lu samples", n_samples);
     samplesList Samples;
     create_lwe_samples(&Samples, &lwe, n_samples);
 
@@ -87,7 +87,7 @@ int main()
         bkwStepPar[i].un_selection = un_selection[i];
         ASSERT(bkwStepPar[i].p2 != 0, "smooth-LMS p2 parameter not valid");
         tmp_categories = num_categories(&lwe, &bkwStepPar[i]);
-        printf("step %d categories %llu\n", i, tmp_categories);
+        printf("step %d categories %lu\n", i, tmp_categories);
         if (tmp_categories > max_categories)
             max_categories = tmp_categories;
     }
@@ -131,7 +131,7 @@ int main()
     for (int i=0; i<numReductionSteps-1; i++){
 
     	time_stamp("Perform smooth LMS reduction step %d/%d", i+1, numReductionSteps);
-        ret = transition_bkw_step_smooth_lms(&lwe, &bkwStepPar[i], &bkwStepPar[i+1], srcSamples, dstSamples);
+        ret = transition_bkw_step_smooth_lms(&lwe, &bkwStepPar[i+1], srcSamples, dstSamples, N_THREADS);
 
         if(i != numReductionSteps-2){
             // clean past list

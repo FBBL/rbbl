@@ -110,7 +110,7 @@ int solve_fwht_search(u8 *binary_solution, int zero_positions, int fwht_position
     u64 intsample;
 
     // process all samples
-    for (int i = 0; i < reducedSamples->n_samples; ++i)
+    for (u64 i = 0; i < reducedSamples->n_samples; ++i)
     {
 
         intsample = sample_to_int(reducedSamples->list[i].a + zero_positions, fwht_positions, q);
@@ -207,7 +207,7 @@ int solve_fwht_search_bruteforce(u8 *binary_solution, short *bf_solution, int ze
         memset(list, 0, N*sizeof(long));
 
         // process all samples
-        for (int i = 0; i < reducedSamples->n_samples; ++i)
+        for (u64 i = 0; i < reducedSamples->n_samples; ++i)
         {
 
             intsample = sample_to_int(reducedSamples->list[i].a + zero_positions, fwht_positions, q);

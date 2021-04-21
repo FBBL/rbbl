@@ -101,7 +101,7 @@ void lwe_init(lweInstance *lwe, u16 n, u16 q, double alpha){
 }
 
 /* Create and allocate n_samples in list */
-void create_lwe_samples(samplesList *Samples, lweInstance *lwe, int n_samples){
+void create_lwe_samples(samplesList *Samples, lweInstance *lwe, u64 n_samples){
 
     Samples->n_samples = n_samples;
     Samples->list = calloc(n_samples, sizeof(sample));
@@ -146,9 +146,9 @@ void create_lwe_samples(samplesList *Samples, lweInstance *lwe, int n_samples){
 
 
 /* allocate memory for sorted samples. n_samples is the nuber of total sampels in input before sorting/bkwstep */
-void allocate_samples_list(samplesList *Samples, lweInstance *lwe, int n_samples){
+void allocate_samples_list(samplesList *Samples, lweInstance *lwe, u64 n_samples){
 
-    Samples->n_samples = n_samples;
+    Samples->n_samples = 0;
     Samples->list = calloc(n_samples, sizeof(sample));
 
     u16 n = lwe->n;
@@ -264,7 +264,7 @@ void allocate_sorted_samples_list(sortedSamplesList *Samples, lweInstance *lwe, 
 }
 
 /* allocate memory for sorted samples. n_samples is the nuber of total sampels in input before sorting/bkwstep */
-void set_sorted_samples_list(sortedSamplesList *Samples, lweInstance *lwe, bkwStepParameters *bkwStepPar, int n_samples){
+void set_sorted_samples_list(sortedSamplesList *Samples, lweInstance *lwe, bkwStepParameters *bkwStepPar, u64 n_samples){
 
     // careful with the following setting... could be modified
     Samples->n_categories = num_categories(lwe, bkwStepPar);

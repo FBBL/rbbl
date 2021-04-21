@@ -91,10 +91,10 @@ void precompute_cdf_table(double sigma);
 void lwe_init(lweInstance *lwe, u16 n, u16 q, double alpha);
 
 // create and allocate lwe samples
-void create_lwe_samples(samplesList *Samples, lweInstance *lwe, int n_samples);
+void create_lwe_samples(samplesList *Samples, lweInstance *lwe, u64 n_samples);
 
 // allocate struct for unsorted lwe samples
-void allocate_samples_list(samplesList *Samples, lweInstance *lwe, int n_samples);
+void allocate_samples_list(samplesList *Samples, lweInstance *lwe, u64 n_samples);
 
 // allocate memory for sorted samples
 void allocate_sorted_samples_list(sortedSamplesList *Samples, lweInstance *lwe, bkwStepParameters *bkwStepPar, u64 n_samples, u64 max_categories);
@@ -105,7 +105,7 @@ void free_samples(samplesList *Samples);
 // free sorted samples
 void free_sorted_samples(sortedSamplesList *Samples, u64 max_categories);
 
-void set_sorted_samples_list(sortedSamplesList *Samples, lweInstance *lwe, bkwStepParameters *bkwStepPar, int n_samples);
+void set_sorted_samples_list(sortedSamplesList *Samples, lweInstance *lwe, bkwStepParameters *bkwStepPar, u64 n_samples);
 
 void clean_sorted_samples(sortedSamplesList *Samples);
 

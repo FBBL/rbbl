@@ -23,6 +23,7 @@
 #include "transition_bkw_step_final.h"
 #include "lookup_tables.h"
 #include "solve_fwht.h"
+#include "error_rate.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -153,7 +154,9 @@ int main()
     /* perform last reduction step */
     int i = numReductionSteps-1;
     time_stamp("Perform last smooth LMS reduction step %d/%d", numReductionSteps, numReductionSteps);
-    ret = transition_bkw_step_final(&lwe, &bkwStepPar[i], srcSamples, &Samples, samples_for_guessing);
+
+    allocate_samples_list(&Samples, &lwe, samples_for_guessing); // actually one could have more or less samples
+    ret = transition_bkw_step_final(&lwe, &bkwStepPar[i], srcSamples, &Samples, samples_for_guessing, N_THREADS);
 
     time_stamp("Number of samples: %d", Samples.n_samples);
 
@@ -174,6 +177,8 @@ int main()
     // printf(")\n");
 
     freeSumAndDiffTables();
+
+    error_rate(zero_positions, &Samples, &lwe);
 
     /* Solving phase - using Fast Walsh Hadamard Tranform */
 

@@ -14,19 +14,11 @@
  *  along with Nome-Programma.  If not, see <http://www.gnu.org/licenses/>
  */
 
-#ifndef CONFIG_H
-#define CONFIG_H
+#ifndef ERROR_RATE_H
+#define ERROR_RATE_H
 
-#include"stdint.h"
+#include "lwe_instance.h"
 
-/* config variables */
+int error_rate(int zero_positions, samplesList *Samples, lweInstance *lwe);
 
-#define u8 uint8_t
-#define u16 uint16_t
-#define u32 uint32_t
-#define u64 uint64_t
-
-#define MAX_NUM_THREADS 16
-#define MAX_NUM_STORAGE_MUTEXES 100000
-
-#endif
+#endif /* ERROR_RATE_H */

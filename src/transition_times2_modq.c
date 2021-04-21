@@ -30,7 +30,8 @@ typedef struct {
 
 /* define mutexes to protect common resources from concurrent access */
 static pthread_mutex_t screen_mutex = PTHREAD_MUTEX_INITIALIZER;
-static pthread_mutex_t save_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t *storage_mutex;
+static int n_storage_mutex;
 
 /* perform multiplication times 2 mod q of srcSample and store in dstSample. return the category */
 int sample_times2_modq(sample *dstSample, sample *srcSample, lweInstance *lwe, bkwStepParameters *bkwStepPar)
@@ -54,17 +55,20 @@ void *single_thread_work(void *params){
     sample tmpSample;
     u64 count = 0, category;
     int n_samples_in_category;
+    int mutex_index;
 
     tmpSample.a = calloc(p->lwe->n, sizeof(u16));
 
     for(count = p->min; count < p->max; count++)
     {
         category = sample_times2_modq(&tmpSample, &p->unsortedSamples->list[count], p->lwe, p->bkwStepPar);
+
         n_samples_in_category = p->sortedSamples->list_categories[category].n_samples;
 
         if (n_samples_in_category < p->sortedSamples->n_samples_per_category && p->sortedSamples->n_samples < p->sortedSamples->max_samples)
         {
-            pthread_mutex_lock(&save_mutex);
+            mutex_index = category % n_storage_mutex;
+            pthread_mutex_lock(&storage_mutex[mutex_index]);
             if (!checkzero((char*)tmpSample.a, sizeof(u16)*(p->lwe->n)))
             {
                 if (category > p->sortedSamples->n_categories)
@@ -78,7 +82,7 @@ void *single_thread_work(void *params){
                 p->sortedSamples->list_categories[category].n_samples++;
                 p->sortedSamples->n_samples++;
             }
-            pthread_mutex_unlock(&save_mutex);
+            pthread_mutex_unlock(&storage_mutex[mutex_index]);
         }
     }
 
@@ -95,6 +99,11 @@ int transition_times2_modq(lweInstance *lwe, bkwStepParameters *bkwStepPar, sort
 
     pthread_t thread[numThreads];
     Params param[numThreads]; /* one set of in-/output paramaters per thread, so no need to lock these */
+
+    /* allocate memory for an optimal number of mutex */
+    n_storage_mutex = sortedSamples->n_categories < MAX_NUM_STORAGE_MUTEXES ? sortedSamples->n_categories : MAX_NUM_STORAGE_MUTEXES;
+    storage_mutex = malloc(n_storage_mutex * sizeof(pthread_mutex_t));
+    for (int i=0; i<n_storage_mutex; i++) { pthread_mutex_init(&storage_mutex[i], NULL); }
 
     /* load input parameters */
     for (int i=0; i<numThreads; i++) {
@@ -134,6 +143,8 @@ int transition_times2_modq(lweInstance *lwe, bkwStepParameters *bkwStepPar, sort
             // pthread_mutex_unlock(&screen_mutex);
         }
     }
+
+    free(storage_mutex);
 
 }
 

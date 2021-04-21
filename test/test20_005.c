@@ -23,6 +23,7 @@
 #include "transition_bkw_step_final.h"
 #include "lookup_tables.h"
 #include "solve_fwht.h"
+#include "error_rate.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -35,7 +36,7 @@
 int main()
 {
     u64 n_samples = 800000;
-    u64 samples_for_guessing = 500000;
+    u64 samples_for_guessing = 800000;
 
     lweInstance lwe;
     int n = 20;
@@ -60,7 +61,7 @@ int main()
 
     int start_index[NUM_REDUCTION_STEPS] =            {0,    2,   4,   6,   8,  11,  13,  16};
     int len_step[NUM_REDUCTION_STEPS] =               {2,    2,   2,   2,   2,   2,   3,   4};
-    int p_step[NUM_REDUCTION_STEPS] =                 {1,    1,   1,   1,   1,   3,   5,   6};
+    int p_step[NUM_REDUCTION_STEPS] =                 {1,    1,   1,   1,   1,   3,   5,   8};
     int p1_step[NUM_REDUCTION_STEPS] =                {75,  28,   9,   3,   1,   8,   9, 401};
     int prev_p1_step[NUM_REDUCTION_STEPS] =           {-1,  75,  28,   9,   3,  -1,   8,   9};
     int un_selection[NUM_REDUCTION_STEPS] =           { 0,   0,   0,   0,   0,   0,  10,  10};
@@ -150,7 +151,9 @@ int main()
     /* perform last reduction step */
     int i = numReductionSteps-1;
     time_stamp("Perform last smooth LMS reduction step %d/%d", numReductionSteps, numReductionSteps);
-    ret = transition_bkw_step_final(&lwe, &bkwStepPar[i], srcSamples, &Samples, samples_for_guessing);
+
+    allocate_samples_list(&Samples, &lwe, samples_for_guessing); // actually one could have more or less samples
+    ret = transition_bkw_step_final(&lwe, &bkwStepPar[i], srcSamples, &Samples, samples_for_guessing, N_THREADS);
 
     time_stamp("Number of samples: %d", Samples.n_samples);
 
@@ -172,8 +175,9 @@ int main()
 
     freeSumAndDiffTables();
 
-    /* Solving phase - using Fast Walsh Hadamard Tranform */
+    error_rate(zero_positions, &Samples, &lwe);
 
+    /* Solving phase - using Fast Walsh Hadamard Tranform */
     time_stamp("Apply Fast Walsh Hadamard Tranform");
     ret = solve_fwht_search(binary_solution, zero_positions, fwht_positions, &Samples, &lwe);
     if(ret)

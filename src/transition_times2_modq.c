@@ -57,7 +57,8 @@ void *single_thread_work(void *params){
     int n_samples_in_category;
     int mutex_index;
 
-    tmpSample.a = calloc(p->lwe->n, sizeof(u16));
+    u16 sample_a[p->lwe->n];
+    tmpSample.a = sample_a;
 
     for(count = p->min; count < p->max; count++)
     {
@@ -67,13 +68,16 @@ void *single_thread_work(void *params){
 
         if (n_samples_in_category < p->sortedSamples->n_samples_per_category && p->sortedSamples->n_samples < p->sortedSamples->max_samples)
         {
-            mutex_index = category % n_storage_mutex;
+            mutex_index = category / n_storage_mutex;
             pthread_mutex_lock(&storage_mutex[mutex_index]);
             if (!checkzero((char*)tmpSample.a, sizeof(u16)*(p->lwe->n)))
             {
                 if (category > p->sortedSamples->n_categories)
                 {
+                    pthread_mutex_lock(&screen_mutex);
                     printf("ERROR: category %lu tot categories %lu \n", category, p->sortedSamples->n_categories );
+                    pthread_mutex_unlock(&screen_mutex);
+                    pthread_mutex_unlock(&storage_mutex[mutex_index]);
                     exit(0);
                 }
                 memcpy(p->sortedSamples->list_categories[category].list[n_samples_in_category].a, tmpSample.a, p->lwe->n*sizeof(u16));
@@ -85,20 +89,17 @@ void *single_thread_work(void *params){
             pthread_mutex_unlock(&storage_mutex[mutex_index]);
         }
     }
-
-    free(tmpSample.a);
 }
 
 
 /* multiply each sample times 2 mod q in sortedSamples. Then store the result in dstSortedSamplesList according to its category */
-int transition_times2_modq(lweInstance *lwe, bkwStepParameters *bkwStepPar, sortedSamplesList *sortedSamples, samplesList* unsortedSamples, int numThreads)
+int transition_times2_modq(lweInstance *lwe, bkwStepParameters *bkwStepPar, sortedSamplesList *sortedSamples, samplesList* unsortedSamples)
 {
 
-    ASSERT(numThreads >= 1, "Unexpected number of threads!");
-    ASSERT(numThreads <= MAX_NUM_THREADS, "Too many threads!");
+    ASSERT(NUM_THREADS >= 1, "Unexpected number of threads!");
 
-    pthread_t thread[numThreads];
-    Params param[numThreads]; /* one set of in-/output paramaters per thread, so no need to lock these */
+    pthread_t thread[NUM_THREADS];
+    Params param[NUM_THREADS]; /* one set of in-/output paramaters per thread, so no need to lock these */
 
     /* allocate memory for an optimal number of mutex */
     n_storage_mutex = sortedSamples->n_categories < MAX_NUM_STORAGE_MUTEXES ? sortedSamples->n_categories : MAX_NUM_STORAGE_MUTEXES;
@@ -106,19 +107,19 @@ int transition_times2_modq(lweInstance *lwe, bkwStepParameters *bkwStepPar, sort
     for (int i=0; i<n_storage_mutex; i++) { pthread_mutex_init(&storage_mutex[i], NULL); }
 
     /* load input parameters */
-    for (int i=0; i<numThreads; i++) {
+    for (int i=0; i<NUM_THREADS; i++) {
         param[i].lwe = lwe; /* set input parameter to thread number */
         param[i].bkwStepPar = bkwStepPar;
         param[i].sortedSamples = sortedSamples;
         param[i].unsortedSamples = unsortedSamples;
-        param[i].min = i*(unsortedSamples->n_samples/numThreads);
-        param[i].max = (i+1)*(unsortedSamples->n_samples/numThreads);
+        param[i].min = i*(unsortedSamples->n_samples/NUM_THREADS);
+        param[i].max = (i+1)*(unsortedSamples->n_samples/NUM_THREADS);
     }
-    param[numThreads-1].max = unsortedSamples->n_samples;
+    param[NUM_THREADS-1].max = unsortedSamples->n_samples;
 
 
     /* start threads */
-    for (int i = 0; i < numThreads; ++i)
+    for (int i = 0; i < NUM_THREADS; ++i)
     {
         if (!pthread_create(&thread[i], NULL, single_thread_work, (void*)&param[i])) {
             // pthread_mutex_lock(&screen_mutex);
@@ -132,7 +133,7 @@ int transition_times2_modq(lweInstance *lwe, bkwStepParameters *bkwStepPar, sort
     }
 
     /* wait until all threads have completed */
-    for (int i = 0; i < numThreads; i++) {
+    for (int i = 0; i < NUM_THREADS; i++) {
         if (!pthread_join(thread[i], NULL)) {
             // pthread_mutex_lock(&screen_mutex);
             // printf("Thread %d joined!\n", i+1);
@@ -143,6 +144,8 @@ int transition_times2_modq(lweInstance *lwe, bkwStepParameters *bkwStepPar, sort
             // pthread_mutex_unlock(&screen_mutex);
         }
     }
+
+    for (int i=0; i<n_storage_mutex; i++) { pthread_mutex_destroy(&storage_mutex[i]); }
 
     free(storage_mutex);
 

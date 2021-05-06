@@ -313,7 +313,7 @@ void *single_work_bruteforce_guess(void *params){
 
 /* Hybrid solver that uses brute-force for bf_positions number of positions and Fast Walsh Hadamard Transform for fftPositions number of positions
  */
-int solve_fwht_search_bruteforce(u8 *binary_solution, short *bf_solution, int zero_positions, int bf_positions, int fwht_positions, samplesList *reducedSamples, lweInstance *lwe, int numThreads)
+int solve_fwht_search_bruteforce(u8 *binary_solution, short *bf_solution, int zero_positions, int bf_positions, int fwht_positions, samplesList *reducedSamples, lweInstance *lwe)
 {
     int q = lwe->q;
     int n = lwe->n;
@@ -321,28 +321,28 @@ int solve_fwht_search_bruteforce(u8 *binary_solution, short *bf_solution, int ze
     ASSERT(1 <= fwht_positions && fwht_positions <= MAX_FWHT, "The number of positions for fwht is not supported in this implementation!\n");
     ASSERT(1 <= bf_positions && bf_positions <= MAX_BRUTE_FORCE, "The number of positions for bruteforce guessing is not supported in this implementation!\n");
     ASSERT(fwht_positions + bf_positions + zero_positions == n, "The number of positions for bruteforce and fwht is => n!\n");
-
+    ASSERT(NUM_THREADS >= 1, "Unexpected number of threads!");
 
     time_stamp("Start FWHT: brute force %d positions, guess %d positions\n", bf_positions, fwht_positions);
 
     int ratio = round(lwe->sigma*4); // 2*3*standard_deviation is the interval length where to search
 
-	pthread_t thread[numThreads];
-    Params param[numThreads]; /* one set of in-/output paramaters per thread, so no need to lock these */
+	pthread_t thread[NUM_THREADS];
+    Params param[NUM_THREADS]; /* one set of in-/output paramaters per thread, so no need to lock these */
 
 
     /* load input parameters */
-    for (int i=0; i<numThreads; i++) {
+    for (int i=0; i<NUM_THREADS; i++) {
         param[i].lwe = lwe; /* set input parameter to thread number */
         param[i].Samples = reducedSamples;
         param[i].bf_positions = bf_positions;
         param[i].fwht_positions = fwht_positions;
         param[i].zero_positions = zero_positions;
-        param[i].min = ((2*ratio+1)/numThreads)*i-ratio;
-        param[i].max = ((2*ratio+1)/numThreads)*(i+1)-ratio;
+        param[i].min = ((2*ratio+1)/NUM_THREADS)*i-ratio;
+        param[i].max = ((2*ratio+1)/NUM_THREADS)*(i+1)-ratio;
         param[i].ratio = ratio;
     }
-    param[numThreads-1].max = ratio+1;
+    param[NUM_THREADS-1].max = ratio+1;
 
     global_max = 0;
     p_bf_solution = bf_solution;
@@ -350,7 +350,7 @@ int solve_fwht_search_bruteforce(u8 *binary_solution, short *bf_solution, int ze
 
  
     /* start threads */
-    for (int i = 0; i < numThreads; ++i)
+    for (int i = 0; i < NUM_THREADS; ++i)
     {
         if (!pthread_create(&thread[i], NULL, single_work_bruteforce_guess, (void*)&param[i])) {
             // pthread_mutex_lock(&screen_mutex);
@@ -364,7 +364,7 @@ int solve_fwht_search_bruteforce(u8 *binary_solution, short *bf_solution, int ze
     }
 
     /* wait until all threads have completed */
-    for (int i = 0; i < numThreads; i++) {
+    for (int i = 0; i < NUM_THREADS; i++) {
         if (!pthread_join(thread[i], NULL)) {
             // pthread_mutex_lock(&screen_mutex);
             // printf("Thread %d joined!\n", i+1);

@@ -79,14 +79,14 @@ void *single_thread_lf2_work(void *params){
     // pthread_mutex_unlock(&screen_mutex);
 
     sample tmpSample;
-    tmpSample.a = calloc(p->lwe->n, sizeof(u16));
+    u16 sample_a[p->lwe->n];
+    tmpSample.a = sample_a;
 
 	for (index1 = p->minIndex1; index1 < p->maxIndex1; index1 = index1+2)
 	{
 		index2 = index1+1;
 
-        if (!(p->dstSamples->n_samples < p->dstSamples->max_samples)){
-        	free(tmpSample.a);
+        if (!(p->dstSamples->n_samples < p->dstSamples->max_samples)){        	
             return NULL;
         }
 
@@ -96,11 +96,13 @@ void *single_thread_lf2_work(void *params){
 	        for (int j=i+1; j < p->srcSamples->list_categories[index1].n_samples; j++)
 	        {
 	            category = subtractSamples(p->lwe, &tmpSample, &p->srcSamples->list_categories[index1].list[i], &p->srcSamples->list_categories[index1].list[j], p->bkwStepPar);
-	            mutex_index = category % n_storage_mutex;
+	            mutex_index = category / n_storage_mutex;
 
 	            if (category > p->dstSamples->n_categories || category < 0)
 	            {
+	            	pthread_mutex_lock(&screen_mutex);
 	                printf("ERROR subtractSamples: category %lu tot categories %lu \n", category, p->dstSamples->n_categories );
+	                pthread_mutex_unlock(&screen_mutex);
 	                exit(0);
 	            }
 
@@ -119,7 +121,6 @@ void *single_thread_lf2_work(void *params){
 
 	                    if (p->dstSamples->n_samples >= p->dstSamples->max_samples){
 	                    	pthread_mutex_unlock(&storage_mutex[mutex_index]);
-	                    	free(tmpSample.a);
 		                    return NULL;
 	                    }
 	                }
@@ -136,11 +137,13 @@ void *single_thread_lf2_work(void *params){
 	        for (int j=i+1; j < p->srcSamples->list_categories[index2].n_samples; j++)
 	        {
 	            category = subtractSamples(p->lwe, &tmpSample, &p->srcSamples->list_categories[index2].list[i], &p->srcSamples->list_categories[index2].list[j], p->bkwStepPar);
-	            mutex_index = category % n_storage_mutex;
+	            mutex_index = category / n_storage_mutex;
 
 	            if (category > p->dstSamples->n_categories || category < 0)
 	            {
+	            	pthread_mutex_lock(&screen_mutex);
 	                printf("ERROR subtractSamples: category %lu tot categories %lu \n", category, p->dstSamples->n_categories );
+	                pthread_mutex_unlock(&screen_mutex);
 	                exit(0);
 	            }
 	     		
@@ -159,7 +162,6 @@ void *single_thread_lf2_work(void *params){
 
 	                    if (p->dstSamples->n_samples >= p->dstSamples->max_samples){
 	                    	pthread_mutex_unlock(&storage_mutex[mutex_index]);
-	                    	free(tmpSample.a);
 		                    return NULL;	                    
 	                    }
 	                }
@@ -176,11 +178,13 @@ void *single_thread_lf2_work(void *params){
 	        for (int j=0; j<p->srcSamples->list_categories[index2].n_samples; j++)
 	        {
 	            category = addSamples(p->lwe, &tmpSample, &p->srcSamples->list_categories[index1].list[i], &p->srcSamples->list_categories[index2].list[j], p->bkwStepPar);
-	            mutex_index = category % n_storage_mutex;
+	            mutex_index = category / n_storage_mutex;
 
 	            if (category > p->dstSamples->n_categories || category < 0)
 	            {
+	            	pthread_mutex_lock(&screen_mutex);
 	                printf("ERROR addSamples: category %lu tot categories %lu \n", category, p->dstSamples->n_categories );
+	                pthread_mutex_unlock(&screen_mutex);
 	                exit(0);
 	            }
 	            
@@ -199,7 +203,6 @@ void *single_thread_lf2_work(void *params){
 
 	                    if (p->dstSamples->n_samples >= p->dstSamples->max_samples){
 	                    	pthread_mutex_unlock(&storage_mutex[mutex_index]);
-	                    	free(tmpSample.a);
 		                    return NULL;
 	                    }
 	                }
@@ -210,16 +213,18 @@ void *single_thread_lf2_work(void *params){
 	        }
 	    }
 	}
-	free(tmpSample.a);
 }
 
-int transition_bkw_step_smooth_lms(lweInstance *lwe, bkwStepParameters *bkwStepPar, sortedSamplesList *srcSamples, sortedSamplesList *dstSamples, int numThreads)
+int transition_bkw_step_smooth_lms(lweInstance *lwe, bkwStepParameters *bkwStepPar, sortedSamplesList *srcSamples, sortedSamplesList *dstSamples)
 {
+
+	ASSERT(NUM_THREADS >= 1, "Unexpected number of threads!");
 
     set_sorted_samples_list(dstSamples, lwe, bkwStepPar, srcSamples->n_samples);
 
     sample tmpSample;
-    tmpSample.a = calloc(lwe->n, sizeof(u16));
+    u16 sample_a[lwe->n];
+    tmpSample.a = sample_a;
 
     u64 category, minc;
     int n_samples_in_category;
@@ -266,21 +271,19 @@ int transition_bkw_step_smooth_lms(lweInstance *lwe, bkwStepParameters *bkwStepP
     else
         minc = 0;
 
-    free(tmpSample.a);
-
-    pthread_t thread[numThreads];
-    Params param[numThreads]; /* one set of in-/output paramaters per thread, so no need to lock these */
+    pthread_t thread[NUM_THREADS];
+    Params param[NUM_THREADS]; /* one set of in-/output paramaters per thread, so no need to lock these */
 
     n_storage_mutex = dstSamples->n_categories < MAX_NUM_STORAGE_MUTEXES ? dstSamples->n_categories : MAX_NUM_STORAGE_MUTEXES;
     storage_mutex = malloc(n_storage_mutex * sizeof(pthread_mutex_t));
     for (int i=0; i<n_storage_mutex; i++) { pthread_mutex_init(&storage_mutex[i], NULL); }
 
-    u64 cat_per_thread = srcSamples->n_categories/numThreads;
+    u64 cat_per_thread = srcSamples->n_categories/NUM_THREADS;
     if(cat_per_thread & 1) // make it even
     	cat_per_thread--;
 
     /* load input parameters */
-    for (int i=0; i<numThreads; i++) {
+    for (int i=0; i<NUM_THREADS; i++) {
         param[i].lwe = lwe; /* set input parameter to thread number */
         param[i].bkwStepPar = bkwStepPar;
         param[i].srcSamples = srcSamples;
@@ -288,11 +291,11 @@ int transition_bkw_step_smooth_lms(lweInstance *lwe, bkwStepParameters *bkwStepP
         param[i].minIndex1 = i == 0 ? minc : param[i-1].minIndex1 + cat_per_thread;
         param[i].maxIndex1 = param[i].minIndex1 + cat_per_thread;
     }
-    param[numThreads-1].maxIndex1 = srcSamples->n_categories-2;
+    param[NUM_THREADS-1].maxIndex1 = srcSamples->n_categories-2;
 
     /* process samples with LF2 method */
     /* start threads */
-    for (int i = 0; i < numThreads; ++i)
+    for (int i = 0; i < NUM_THREADS; ++i)
     {
         if (!pthread_create(&thread[i], NULL, single_thread_lf2_work, (void*)&param[i])) {
             // pthread_mutex_lock(&screen_mutex);
@@ -306,7 +309,7 @@ int transition_bkw_step_smooth_lms(lweInstance *lwe, bkwStepParameters *bkwStepP
     }
 
     /* wait until all threads have completed */
-    for (int i = 0; i < numThreads; i++) {
+    for (int i = 0; i < NUM_THREADS; i++) {
         if (!pthread_join(thread[i], NULL)) {
             // pthread_mutex_lock(&screen_mutex);
             // printf("Thread %d joined!\n", i+1);
@@ -317,6 +320,8 @@ int transition_bkw_step_smooth_lms(lweInstance *lwe, bkwStepParameters *bkwStepP
             // pthread_mutex_unlock(&screen_mutex);
         }
     }
+
+    for (int i=0; i<n_storage_mutex; i++) { pthread_mutex_destroy(&storage_mutex[i]); }
 
     time_stamp("discarded samples: %ld", discarded);
     free(storage_mutex);

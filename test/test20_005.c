@@ -31,7 +31,6 @@
 #define NUM_REDUCTION_STEPS 8
 #define BRUTE_FORCE_POSITIONS 0
 #define ZERO_POSITIONS 11
-#define N_THREADS 8
 
 int main()
 {
@@ -101,10 +100,6 @@ int main()
     u8 binary_solution[fwht_positions];
     short bf_solution[bruteForcePositions];
 
-    clock_t start, end;
-    double cpu_time_used;
-    start = clock();
-
     time_stamp("Start reduction phase");
 
     sortedSamplesList sortedSamples1;
@@ -116,7 +111,7 @@ int main()
 
     /* multiply times 2 mod q and sort (unsorted) samples */
     time_stamp("Multiply samples times 2 modulo q");
-    int ret = transition_times2_modq(&lwe, &bkwStepPar[0], &sortedSamples1, &Samples, N_THREADS);
+    int ret = transition_times2_modq(&lwe, &bkwStepPar[0], &sortedSamples1, &Samples);
     time_stamp("Number of samples: %d - %d samples per category", sortedSamples1.n_samples, sortedSamples1.n_samples_per_category);
 
     // free original samples - save up memory
@@ -127,12 +122,15 @@ int main()
 
     allocate_sorted_samples_list(dstSamples, &lwe, &bkwStepPar[1], srcSamples->n_samples, max_categories);
 
+    struct timespec begin, end;
+    clock_gettime(CLOCK_REALTIME, &begin);
+
     // perform smooth LMS steps
     int numReductionSteps = NUM_REDUCTION_STEPS;
     for (int i=0; i<numReductionSteps-1; i++){
 
     	time_stamp("Perform smooth LMS reduction step %d/%d", i+1, numReductionSteps);
-        ret = transition_bkw_step_smooth_lms(&lwe, &bkwStepPar[i+1], srcSamples, dstSamples, N_THREADS);
+        ret = transition_bkw_step_smooth_lms(&lwe, &bkwStepPar[i+1], srcSamples, dstSamples);
 
         if(i != numReductionSteps-2){
             // clean past list
@@ -148,12 +146,17 @@ int main()
         time_stamp("Number of samples: %d - %d samples per category", srcSamples->n_samples, srcSamples->n_samples_per_category);
     }
 
+    clock_gettime(CLOCK_REALTIME, &end);
+    long seconds = end.tv_sec - begin.tv_sec;
+    long nanoseconds = end.tv_nsec - begin.tv_nsec;
+    double elapsed = seconds + nanoseconds*1e-9;
+
     /* perform last reduction step */
     int i = numReductionSteps-1;
     time_stamp("Perform last smooth LMS reduction step %d/%d", numReductionSteps, numReductionSteps);
 
     allocate_samples_list(&Samples, &lwe, samples_for_guessing); // actually one could have more or less samples
-    ret = transition_bkw_step_final(&lwe, &bkwStepPar[i], srcSamples, &Samples, samples_for_guessing, N_THREADS);
+    ret = transition_bkw_step_final(&lwe, &bkwStepPar[i], srcSamples, &Samples, samples_for_guessing);
 
     time_stamp("Number of samples: %d", Samples.n_samples);
 
@@ -187,7 +190,6 @@ int main()
     }
     free_samples(&Samples);
 
-
     printf("\nFound Solution   \n");
     for(int i = 0; i<fwht_positions; i++)
         printf("%d ",binary_solution[i]);
@@ -198,10 +200,7 @@ int main()
         printf("%d ",original_binary_secret[i]);
     printf("\n\n");
 
-    end = clock();
-    cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
-
-    time_stamp("Terminate program: %lf seconds ", cpu_time_used);
+    printf("Time measured: %.3f seconds.\n", elapsed);
 
     return 0;
 }

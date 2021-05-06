@@ -31,7 +31,6 @@
 #define NUM_REDUCTION_STEPS 13
 #define BRUTE_FORCE_POSITIONS 1
 #define ZERO_POSITIONS 18
-#define N_THREADS 16
 
 int main()
 {
@@ -132,7 +131,7 @@ int main()
 
     /* multiply times 2 mod q and sort (unsorted) samples */
     time_stamp("Multiply samples times 2 modulo q");
-    int ret = transition_times2_modq(&lwe, &bkwStepPar[0], &sortedSamples1, &Samples, N_THREADS);
+    int ret = transition_times2_modq(&lwe, &bkwStepPar[0], &sortedSamples1, &Samples);
     time_stamp("Number of samples: %d - %d samples per category", sortedSamples1.n_samples, sortedSamples1.n_samples_per_category);
 
     // free original samples - save up memory
@@ -148,7 +147,7 @@ int main()
     for (int i=0; i<numReductionSteps-1; i++){
 
         time_stamp("Perform smooth LMS reduction step %d/%d", i+1, numReductionSteps);
-        ret = transition_bkw_step_smooth_lms(&lwe, &bkwStepPar[i+1], srcSamples, dstSamples, N_THREADS);
+        ret = transition_bkw_step_smooth_lms(&lwe, &bkwStepPar[i+1], srcSamples, dstSamples);
 
         if(i != numReductionSteps-2){
             // clean past list
@@ -169,7 +168,7 @@ int main()
     time_stamp("Perform last smooth LMS reduction step %d/%d", numReductionSteps, numReductionSteps);
 
     allocate_samples_list(&Samples, &lwe, samples_for_guessing); // actually one could have more or less samples
-    ret = transition_bkw_step_final(&lwe, &bkwStepPar[i], srcSamples, &Samples, samples_for_guessing, N_THREADS);
+    ret = transition_bkw_step_final(&lwe, &bkwStepPar[i], srcSamples, &Samples, samples_for_guessing);
 
     time_stamp("Number of samples: %d", Samples.n_samples);
 
@@ -196,7 +195,7 @@ int main()
     /* Solving phase - using Fast Walsh Hadamard Tranform */
 
     time_stamp("Apply Fast Walsh Hadamard Tranform");
-    ret = solve_fwht_search_bruteforce(binary_solution, bf_solution, zero_positions, bf_positions, fwht_positions, &Samples, &lwe, N_THREADS);
+    ret = solve_fwht_search_bruteforce(binary_solution, bf_solution, zero_positions, bf_positions, fwht_positions, &Samples, &lwe);
     if(ret)
     {
         printf("error %d in solve_fwht_search_hybrid\n", ret);

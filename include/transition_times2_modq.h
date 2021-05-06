@@ -22,6 +22,6 @@
 #include "lwe_instance.h"
 #include <time.h>
 
-int transition_times2_modq(lweInstance *lwe, bkwStepParameters *bkwStepPar, sortedSamplesList *sortedSamplesList, samplesList* unsortedSampleList, int n_threads);
+int transition_times2_modq(lweInstance *lwe, bkwStepParameters *bkwStepPar, sortedSamplesList *sortedSamplesList, samplesList* unsortedSampleList);
 
 #endif /* SRC_FILE_BASED_LWE_MOD2ATTACK_UTILS_H_ */

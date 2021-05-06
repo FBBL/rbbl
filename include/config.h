@@ -26,7 +26,7 @@
 #define u32 uint32_t
 #define u64 uint64_t
 
-#define MAX_NUM_THREADS 16
-#define MAX_NUM_STORAGE_MUTEXES 100000
+#define NUM_THREADS 12
+#define MAX_NUM_STORAGE_MUTEXES 100
 
 #endif

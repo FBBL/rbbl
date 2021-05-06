@@ -84,7 +84,8 @@ void *single_thread_final_lf2_work(void *params){
     Params *p = (Params*)params;
 
     sample tmpSample;
-    tmpSample.a = calloc(p->lwe->n, sizeof(u16));
+    u16 sample_a[p->lwe->n];
+    tmpSample.a = sample_a;
 
     u64 index1, index2, category, sample_index;
     int n_samples_in_category, mutex_index;
@@ -95,7 +96,6 @@ void *single_thread_final_lf2_work(void *params){
         index2 = index1+1;
 
         if (!(p->dstSamples->n_samples < p->maxTotSamples)){
-        	free(tmpSample.a);
             return NULL;
         }
 
@@ -113,7 +113,6 @@ void *single_thread_final_lf2_work(void *params){
                     sample_index = p->dstSamples->n_samples;
                     if (!(p->dstSamples->n_samples < p->maxTotSamples))
                     {
-                    	free(tmpSample.a);
                     	pthread_mutex_unlock(&tot_count_mutex);
 	            		return NULL;
                     }
@@ -145,7 +144,6 @@ void *single_thread_final_lf2_work(void *params){
                     sample_index = p->dstSamples->n_samples;
                     if (!(p->dstSamples->n_samples < p->maxTotSamples))
                     {
-                    	free(tmpSample.a);
                     	pthread_mutex_unlock(&tot_count_mutex);
 	            		return NULL;
                     }
@@ -177,7 +175,6 @@ void *single_thread_final_lf2_work(void *params){
                     sample_index = p->dstSamples->n_samples;
                     if (!(p->dstSamples->n_samples < p->maxTotSamples))
                     {
-                    	free(tmpSample.a);
                     	pthread_mutex_unlock(&tot_count_mutex);
 	            		return NULL;
                     }
@@ -195,19 +192,20 @@ void *single_thread_final_lf2_work(void *params){
             }
         }
     }
-
-    free(tmpSample.a);
 }
 
 /*
     VERY IMPORTANT: p->maxTotSamples must be < than the expected number of samples that can be generated!
 */
 
-int transition_bkw_step_final(lweInstance *lwe, bkwStepParameters *srcBkwStepPar, sortedSamplesList *srcSamples, samplesList *dstSamples, u64 maxSamples, int numThreads)
+int transition_bkw_step_final(lweInstance *lwe, bkwStepParameters *srcBkwStepPar, sortedSamplesList *srcSamples, samplesList *dstSamples, u64 maxSamples)
 {
 
+    ASSERT(NUM_THREADS >= 1, "Unexpected number of threads!");
+
     sample tmpSample;
-    tmpSample.a = calloc(lwe->n, sizeof(u16));
+    u16 sample_a[lwe->n];
+    tmpSample.a = sample_a;
 
     u64 index1, index2, minc;
     dstSamples->n_samples = 0;
@@ -247,17 +245,15 @@ int transition_bkw_step_final(lweInstance *lwe, bkwStepParameters *srcBkwStepPar
         minc = 0;
     }
 
-    free(tmpSample.a);
+    pthread_t thread[NUM_THREADS];
+    Params param[NUM_THREADS]; /* one set of in-/output paramaters per thread, so no need to lock these */
 
-    pthread_t thread[numThreads];
-    Params param[numThreads]; /* one set of in-/output paramaters per thread, so no need to lock these */
-
-    u64 cat_per_thread = srcSamples->n_categories/numThreads;
+    u64 cat_per_thread = srcSamples->n_categories/NUM_THREADS;
     if(cat_per_thread & 1) // make it even
         cat_per_thread--;
 
     /* load input parameters */
-    for (int i=0; i<numThreads; i++) {
+    for (int i=0; i<NUM_THREADS; i++) {
         param[i].lwe = lwe; /* set input parameter to thread number */
         param[i].bkwStepPar = srcBkwStepPar;
         param[i].srcSamples = srcSamples;
@@ -266,11 +262,11 @@ int transition_bkw_step_final(lweInstance *lwe, bkwStepParameters *srcBkwStepPar
         param[i].maxIndex1 = param[i].minIndex1 + cat_per_thread;
         param[i].maxTotSamples = maxSamples;
     }
-    param[numThreads-1].maxIndex1 = srcSamples->n_categories-2;
+    param[NUM_THREADS-1].maxIndex1 = srcSamples->n_categories-2;
 
     /* process samples with LF2 method */
     /* start threads */
-    for (int i = 0; i < numThreads; ++i)
+    for (int i = 0; i < NUM_THREADS; ++i)
     {
         if (!pthread_create(&thread[i], NULL, single_thread_final_lf2_work, (void*)&param[i])) {
             // pthread_mutex_lock(&screen_mutex);
@@ -284,7 +280,7 @@ int transition_bkw_step_final(lweInstance *lwe, bkwStepParameters *srcBkwStepPar
     }
 
     /* wait until all threads have completed */
-    for (int i = 0; i < numThreads; i++) {
+    for (int i = 0; i < NUM_THREADS; i++) {
         if (!pthread_join(thread[i], NULL)) {
             // pthread_mutex_lock(&screen_mutex);
             // printf("Thread %d joined!\n", i+1);

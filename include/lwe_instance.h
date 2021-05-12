@@ -37,31 +37,20 @@ typedef struct
 
 } lweInstance;
 
-// struct for a simple LWE sample
 typedef struct
 {
-    u16 *a; // (a_1...a_n)
-    u16 z;  // sum(a_i * s_i) + error
-    u16 error;
-} sample;
-
-typedef struct
-{
-    sample *list;
+    u16 *a_list; // list of samples
+    u16 *z_list; // list of z = a.s + e
     u32 n_samples;
-} samplesList;
+    u64 max_samples;
+} unsortedSamplesList;
 
 typedef struct
 {
-    sample *list;
-    u16 n_samples;
-} category;
-
-typedef struct
-{
-    category *list_categories;
+    u16 *a_list; // list of samples
+    u16 *z_list; // list of z = a.s + e
+    u8 *n_in_categories;
     u64 n_categories;
-    u8 n_samples_per_category;
     u64 n_samples;
     u64 max_samples;
 } sortedSamplesList;
@@ -91,21 +80,21 @@ void precompute_cdf_table(double sigma);
 void lwe_init(lweInstance *lwe, u16 n, u16 q, double alpha);
 
 // create and allocate lwe samples
-void create_lwe_samples(samplesList *Samples, lweInstance *lwe, u64 n_samples);
+void create_lwe_samples(unsortedSamplesList *Samples, lweInstance *lwe, u64 n_samples);
 
 // allocate struct for unsorted lwe samples
-void allocate_samples_list(samplesList *Samples, lweInstance *lwe, u64 n_samples);
+void allocate_unsorted_samples_list(unsortedSamplesList *Samples, lweInstance *lwe, u64 n_samples);
 
 // allocate memory for sorted samples
 void allocate_sorted_samples_list(sortedSamplesList *Samples, lweInstance *lwe, bkwStepParameters *bkwStepPar, u64 n_samples, u64 max_categories);
 
 // free samples
-void free_samples(samplesList *Samples);
+void free_samples(unsortedSamplesList *Samples);
 
 // free sorted samples
 void free_sorted_samples(sortedSamplesList *Samples, u64 max_categories);
 
-void set_sorted_samples_list(sortedSamplesList *Samples, lweInstance *lwe, bkwStepParameters *bkwStepPar, u64 n_samples);
+void set_sorted_samples_list(sortedSamplesList *Samples, lweInstance *lwe, bkwStepParameters *bkwStepPar, u64 n_samples, u64 max_categories);
 
 void clean_sorted_samples(sortedSamplesList *Samples);
 

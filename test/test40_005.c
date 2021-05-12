@@ -21,7 +21,6 @@
 #include "transition_times2_modq.h"
 #include "transition_bkw_step_smooth_lms.h"
 #include "transition_bkw_step_final.h"
-#include "lookup_tables.h"
 #include "solve_fwht.h"
 #include "error_rate.h"
 
@@ -46,10 +45,6 @@ int main()
 
     time_stamp("Precomputation");
     precompute_cdf_table(alpha*q);
-    // if (createSumAndDiffTables(lwe.q)){
-    //     printf("ERROR precomputing Sums and Diffs tables\n");
-    //     return 0;
-    // }
 
     time_stamp("Create LWE instance");
     lwe_init(&lwe, n, q, alpha);
@@ -74,9 +69,9 @@ int main()
 // //   n = 40, alpha = 0.005, 8 smoothplainBKW + 5 smoothLMS + 1 bruteforce
     int start_index[NUM_REDUCTION_STEPS] =                     {0,     2,    4,   6,   9,  11,  13,  15,  18,  21,  25,   29,   34};
     int len_step[NUM_REDUCTION_STEPS] =                        {2,     2,    2,   2,   2,   2,   2,   2,   3,   4,   4,    5,    5};
-    int p_step[NUM_REDUCTION_STEPS] =                          {1,     1,    1,   1,   1,   1,   1,   1,  11,  20,  29,   52,   59};
-    int p1_step[NUM_REDUCTION_STEPS] =                         {165,  30,    6,   1, 165,  30,   6,   1, 180, 800, 800,    q,    q};
-    int prev_p1_step[NUM_REDUCTION_STEPS] =                    {-1,  165,   30,   6,  -1, 165,  30,   6,  -1, 180, 800,  800,    q};
+    int p_step[NUM_REDUCTION_STEPS] =                          {1,     1,    1,   1,   1,   1,   1,   1,  11,  20,  29,   45,   48};
+    int p1_step[NUM_REDUCTION_STEPS] =                         {165,  30,    6,   1, 165,  30,   6,   1, 150, 400, 200,  800,    q};
+    int prev_p1_step[NUM_REDUCTION_STEPS] =                    {-1,  165,   30,   6,  -1, 165,  30,   6,  -1, 150, 400,  200,  800};
     int un_selection[NUM_REDUCTION_STEPS] =                    {0,     0,    0,   0,   0,   0,   0,   0,  16,  23,  33,   40,   40};
 
 //   n = 40, alpha = 0.005, 8 smoothplainBKW + 5 smoothLMS - bruteforce 2 positions
@@ -117,7 +112,7 @@ int main()
     short bf_solution[bf_positions];
 
     time_stamp("Generate %lu samples", n_samples);
-    samplesList Samples;
+    unsortedSamplesList Samples;
     create_lwe_samples(&Samples, &lwe, n_samples);
 
     time_stamp("Start reduction phase");
@@ -142,11 +137,15 @@ int main()
 
     allocate_sorted_samples_list(dstSamples, &lwe, &bkwStepPar[1], srcSamples->n_samples, max_categories);
 
+    struct timespec begin, end;
+    clock_gettime(CLOCK_REALTIME, &begin);
+
     // perform smooth LMS steps
     int numReductionSteps = NUM_REDUCTION_STEPS;
     for (int i=0; i<numReductionSteps-1; i++){
 
         time_stamp("Perform smooth LMS reduction step %d/%d", i+1, numReductionSteps);
+        set_sorted_samples_list(dstSamples, lwe, &bkwStepPar[i+1], srcSamples->n_samples, max_categories);
         ret = transition_bkw_step_smooth_lms(&lwe, &bkwStepPar[i+1], srcSamples, dstSamples);
 
         if(i != numReductionSteps-2){
@@ -162,6 +161,11 @@ int main()
 
         time_stamp("Number of samples: %d - %d samples per category", srcSamples->n_samples, srcSamples->n_samples_per_category);
     }
+
+    clock_gettime(CLOCK_REALTIME, &end);
+    long seconds = end.tv_sec - begin.tv_sec;
+    long nanoseconds = end.tv_nsec - begin.tv_nsec;
+    double elapsed = seconds + nanoseconds*1e-9;
 
     /* perform last reduction step */
     int i = numReductionSteps-1;
@@ -188,9 +192,7 @@ int main()
     }
     // printf(")\n");
 
-    freeSumAndDiffTables();
-
-    error_rate(zero_positions, &Samples, &lwe);
+    // error_rate(zero_positions, &Samples, &lwe);
 
     /* Solving phase - using Fast Walsh Hadamard Tranform */
 
@@ -218,7 +220,9 @@ int main()
         printf("%d ",lwe.s[i]);
     printf("\n");
 
-    time_stamp("Terminate program.");;
+    time_stamp("Terminate program.");
+
+    printf("Time measured: %.3f seconds.\n", elapsed);
 
     return 0;
 }

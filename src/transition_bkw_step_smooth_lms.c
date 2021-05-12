@@ -37,31 +37,32 @@ typedef struct {
     u64 maxIndex1;
 } Params;
 
-static u64 subtractSamples(lweInstance *lwe, sample *outSample, sample *sample1, sample *sample2, bkwStepParameters *bkwStepPar)
+static u64 subtractSamples(lweInstance *lwe, u16 *dst_a, u16 *dst_z, u16 *src1_a, u16 src1_z, u16 *src2_a, u16 src2_z,  bkwStepParameters *bkwStepPar)
 {
-    int q = lwe->q;
 
-    for (int i=0; i < lwe->n; i++)
-        outSample->a[i] = (sample1->a[i] - sample2->a[i] + q) %q;//     diffTable(sample1->a[i], sample2->a[i]);
-    outSample->z = (sample1->z - sample2->z + q) %q;
-    // outSample->error = diffTable(sample1->error, sample2->error);
+    for (int i=0; i < lwe->n; i++){
+        dst_a[i] = (src1_a[i] - src2_a[i] + lwe->q);
+        dst_a[i] = dst_a[i] >= lwe->q ? dst_a[i] -lwe->q : dst_a[i];
+    }
+    *dst_z = (src2_z - src2_z + lwe->q);
+    *dst_z = *dst_z >= lwe->q ? *dst_z -lwe->q : *dst_z;
 
-    u64 index = position_values_2_category_index(lwe, bkwStepPar, outSample->a + bkwStepPar->startIndex);
+    u64 index = position_values_2_category_index(lwe, bkwStepPar, dst_a + bkwStepPar->startIndex);
 
     return index;
 }
 
-static u64 addSamples(lweInstance *lwe, sample *outSample, sample *sample1, sample *sample2, bkwStepParameters *bkwStepPar)
+static u64 addSamples(lweInstance *lwe, u16 *dst_a, u16 *dst_z, u16 *src1_a, u16 src1_z, u16 *src2_a, u16 src2_z,  bkwStepParameters *bkwStepPar)
 {
-    int n = lwe->n;
-    int q = lwe->q;
 
-    for (int i=0; i < n; i++)
-        outSample->a[i] = (sample1->a[i] + sample2->a[i]) % q;//sumTable(sample1->a[i], sample2->a[i]);
-    outSample->z = (sample1->z + sample2->z) % q;//sumTable(sample1->z, sample2->z);
-    // outSample->error = sumTable(sample1->error, sample2->error);
+    for (int i=0; i < lwe->n; i++){
+        dst_a[i] = (src1_a[i] + src2_a[i]);
+        dst_a[i] = dst_a[i] >= lwe->q ? dst_a[i] -lwe->q : dst_a[i];
+    }
+    *dst_z = (src2_z + src2_z);
+    *dst_z = *dst_z >= lwe->q ? *dst_z -lwe->q : *dst_z;
 
-    u64 index = position_values_2_category_index(lwe, bkwStepPar, outSample->a + bkwStepPar->startIndex);
+    u64 index = position_values_2_category_index(lwe, bkwStepPar, dst_a + bkwStepPar->startIndex);
 
     return index;
 }
@@ -72,15 +73,19 @@ void *single_thread_lf2_work(void *params){
 	Params *p = (Params*)params;
 
 	u64 index1, index2, category;
-	int n_samples_in_category, mutex_index;
+	int n_in_categories, mutex_index;
 
     // pthread_mutex_lock(&screen_mutex);
     // printf("Min %lu Max %lu\n", p->minIndex1, p->maxIndex1);
     // pthread_mutex_unlock(&screen_mutex);
 
-    sample tmpSample;
-    u16 sample_a[p->lwe->n];
-    tmpSample.a = sample_a;
+    u16 tmp_a[p->lwe->n];
+    u16 tmp_z = 0;
+
+   	u16 in, jn;
+
+    int block_a = p->lwe->n*SAMPLES_PER_CATEGORY;
+    int block_z = SAMPLES_PER_CATEGORY;
 
 	for (index1 = p->minIndex1; index1 < p->maxIndex1; index1 = index1+2)
 	{
@@ -91,11 +96,13 @@ void *single_thread_lf2_work(void *params){
         }
 
 	    // process single category
-	    for (int i = 0; i < p->srcSamples->list_categories[index1].n_samples; i++)
+	    for (int i = 0; i < p->srcSamples->n_in_categories[index1]; i++)
 	    {
-	        for (int j=i+1; j < p->srcSamples->list_categories[index1].n_samples; j++)
+	    	in = i*p->lwe->n;
+	        for (int j=i+1; j < p->srcSamples->n_in_categories[index1]; j++)
 	        {
-	            category = subtractSamples(p->lwe, &tmpSample, &p->srcSamples->list_categories[index1].list[i], &p->srcSamples->list_categories[index1].list[j], p->bkwStepPar);
+	        	jn = j*p->lwe->n;
+	            category = subtractSamples(p->lwe, tmp_a, &tmp_z, &p->srcSamples->a_list[index1*block_a +in], p->srcSamples->z_list[index1*block_z +in], &p->srcSamples->a_list[index1*block_a +jn], p->srcSamples->z_list[index1*block_z +jn], p->bkwStepPar);
 	            mutex_index = category / n_storage_mutex;
 
 	            if (category > p->dstSamples->n_categories || category < 0)
@@ -108,15 +115,14 @@ void *single_thread_lf2_work(void *params){
 
 	            pthread_mutex_lock(&storage_mutex[mutex_index]);
 	            // add it to the new list
-	            n_samples_in_category = p->dstSamples->list_categories[category].n_samples;
-	            if (n_samples_in_category < p->dstSamples->n_samples_per_category)
+	            n_in_categories = p->dstSamples->n_in_categories[category];
+	            if (n_in_categories < SAMPLES_PER_CATEGORY)
 	            {
-	            	if (!checkzero((char*)tmpSample.a, sizeof(u16)*p->lwe->n))
+	            	if (!checkzero((char*)tmp_a, sizeof(u16)*p->lwe->n))
 	            	{
-	                    memcpy(p->dstSamples->list_categories[category].list[n_samples_in_category].a, tmpSample.a, p->lwe->n*sizeof(u16));
-	                    p->dstSamples->list_categories[category].list[n_samples_in_category].z = tmpSample.z;
-	                    // dstSamples->list_categories[category].list[n_samples_in_category].error = tmpSample.error;
-	                    p->dstSamples->list_categories[category].n_samples++;
+	                    memcpy(&p->dstSamples->a_list[category*block_a + n_in_categories*p->lwe->n], tmp_a, p->lwe->n*sizeof(u16));
+	                    p->dstSamples->z_list[category*block_z +n_in_categories] = tmp_z;
+	                    p->dstSamples->n_in_categories[category]++;
 	                    p->dstSamples->n_samples++;
 
 	                    if (p->dstSamples->n_samples >= p->dstSamples->max_samples){
@@ -132,11 +138,13 @@ void *single_thread_lf2_work(void *params){
 	    }
 
 	    // process single category
-	    for (int i = 0; i < p->srcSamples->list_categories[index2].n_samples; i++)
+	    for (int i = 0; i < p->srcSamples->n_in_categories[index2]; i++)
 	    {
-	        for (int j=i+1; j < p->srcSamples->list_categories[index2].n_samples; j++)
+	    	in = i*p->lwe->n;
+	        for (int j=i+1; j < p->srcSamples->n_in_categories[index2]; j++)
 	        {
-	            category = subtractSamples(p->lwe, &tmpSample, &p->srcSamples->list_categories[index2].list[i], &p->srcSamples->list_categories[index2].list[j], p->bkwStepPar);
+	        	jn = j*p->lwe->n;
+	            category = subtractSamples(p->lwe, tmp_a, &tmp_z, &p->srcSamples->a_list[index2*block_a +in], p->srcSamples->z_list[index2*block_z +in], &p->srcSamples->a_list[index2*block_a +jn], p->srcSamples->z_list[index2*block_z +jn], p->bkwStepPar);
 	            mutex_index = category / n_storage_mutex;
 
 	            if (category > p->dstSamples->n_categories || category < 0)
@@ -149,15 +157,14 @@ void *single_thread_lf2_work(void *params){
 	     		
 	     		pthread_mutex_lock(&storage_mutex[mutex_index]);
 	            // add it to the new list
-	            n_samples_in_category = p->dstSamples->list_categories[category].n_samples;
-	            if (n_samples_in_category < p->dstSamples->n_samples_per_category)
+	            n_in_categories = p->dstSamples->n_in_categories[category];
+	            if (n_in_categories < SAMPLES_PER_CATEGORY)
 	            {
-	            	if (!checkzero((char*)tmpSample.a, sizeof(u16)*p->lwe->n))
+	            	if (!checkzero((char*)tmp_a, sizeof(u16)*p->lwe->n))
 	            	{
-	                    memcpy(p->dstSamples->list_categories[category].list[n_samples_in_category].a, tmpSample.a, p->lwe->n*sizeof(u16));
-	                    p->dstSamples->list_categories[category].list[n_samples_in_category].z = tmpSample.z;
-	                    // dstSamples->list_categories[category].list[n_samples_in_category].error = tmpSample.error;
-	                    p->dstSamples->list_categories[category].n_samples++;
+	                    memcpy(&p->dstSamples->a_list[category*block_a +n_in_categories*p->lwe->n], tmp_a, p->lwe->n*sizeof(u16));
+	                    p->dstSamples->z_list[category*block_z +n_in_categories] = tmp_z;
+	                    p->dstSamples->n_in_categories[category]++;
 	                    p->dstSamples->n_samples++;
 
 	                    if (p->dstSamples->n_samples >= p->dstSamples->max_samples){
@@ -173,11 +180,13 @@ void *single_thread_lf2_work(void *params){
 	    }
 
 	    // process two adjacent category
-	    for (int i=0; i<p->srcSamples->list_categories[index1].n_samples; i++)
+	    for (int i=0; i<p->srcSamples->n_in_categories[index1]; i++)
 	    {
-	        for (int j=0; j<p->srcSamples->list_categories[index2].n_samples; j++)
+	    	in = i*p->lwe->n;
+	        for (int j=0; j<p->srcSamples->n_in_categories[index2]; j++)
 	        {
-	            category = addSamples(p->lwe, &tmpSample, &p->srcSamples->list_categories[index1].list[i], &p->srcSamples->list_categories[index2].list[j], p->bkwStepPar);
+	        	jn = j*p->lwe->n;
+	            category = addSamples(p->lwe, tmp_a, &tmp_z, &p->srcSamples->a_list[index1*block_a +in], p->srcSamples->z_list[index1*block_z +in], &p->srcSamples->a_list[index2*block_a +jn], p->srcSamples->z_list[index2*block_z +jn], p->bkwStepPar);
 	            mutex_index = category / n_storage_mutex;
 
 	            if (category > p->dstSamples->n_categories || category < 0)
@@ -190,15 +199,14 @@ void *single_thread_lf2_work(void *params){
 	            
 	            pthread_mutex_lock(&storage_mutex[mutex_index]);
 	            // add it to the new list
-	                n_samples_in_category = p->dstSamples->list_categories[category].n_samples;
-	            if (n_samples_in_category < p->dstSamples->n_samples_per_category)
+	                n_in_categories = p->dstSamples->n_in_categories[category];
+	            if (n_in_categories < SAMPLES_PER_CATEGORY)
 	            {
-	            	if (!checkzero((char*)tmpSample.a, sizeof(u16)*p->lwe->n))
+	            	if (!checkzero((char*)tmp_a, sizeof(u16)*p->lwe->n))
 	            	{	                    
-	                    memcpy(p->dstSamples->list_categories[category].list[n_samples_in_category].a, tmpSample.a, p->lwe->n*sizeof(u16));
-	                    p->dstSamples->list_categories[category].list[n_samples_in_category].z = tmpSample.z;
-	                    // dstSamples->list_categories[category].list[n_samples_in_category].error = tmpSample.error;
-	                    p->dstSamples->list_categories[category].n_samples++;
+	                    memcpy(&p->dstSamples->a_list[category*block_a +n_in_categories*p->lwe->n], tmp_a, p->lwe->n*sizeof(u16));
+	                    p->dstSamples->z_list[category*block_z +n_in_categories] = tmp_z;
+	                    p->dstSamples->n_in_categories[category]++;
 	                    p->dstSamples->n_samples++;
 
 	                    if (p->dstSamples->n_samples >= p->dstSamples->max_samples){
@@ -220,26 +228,25 @@ int transition_bkw_step_smooth_lms(lweInstance *lwe, bkwStepParameters *bkwStepP
 
 	ASSERT(NUM_THREADS >= 1, "Unexpected number of threads!");
 
-    set_sorted_samples_list(dstSamples, lwe, bkwStepPar, srcSamples->n_samples);
-
-    sample tmpSample;
-    u16 sample_a[lwe->n];
-    tmpSample.a = sample_a;
+    u16 tmp_a[lwe->n];
+    u16 tmp_z = 0;
 
     u64 category, minc;
-    int n_samples_in_category;
+    int n_in_categories;
 
     discarded = 0;
+
+    int block_a = lwe->n*SAMPLES_PER_CATEGORY;
+    int block_z = SAMPLES_PER_CATEGORY;
 
     if (srcSamples->n_categories & 1)
     {
         // process single category
-        for (int i = 0; i < srcSamples->list_categories[0].n_samples; i++)
+        for (int i = 0; i < srcSamples->n_in_categories[0]; i++)
         {
-            for (int j=i+1; j < srcSamples->list_categories[0].n_samples; j++)
+            for (int j=i+1; j < srcSamples->n_in_categories[0]; j++)
             {
-
-                category = subtractSamples(lwe, &tmpSample, &srcSamples->list_categories[0].list[i], &srcSamples->list_categories[0].list[j], bkwStepPar);
+                category = subtractSamples(lwe, tmp_a, &tmp_z, &srcSamples->a_list[0+i*lwe->n], srcSamples->z_list[0+i], &srcSamples->a_list[0+j*lwe->n], srcSamples->z_list[j], bkwStepPar);
                 
                 if (category > dstSamples->n_categories || category < 0)
                 {
@@ -248,16 +255,15 @@ int transition_bkw_step_smooth_lms(lweInstance *lwe, bkwStepParameters *bkwStepP
                 }
 
                 // add it to the new list
-                n_samples_in_category = dstSamples->list_categories[category].n_samples;
-                if (n_samples_in_category < dstSamples->n_samples_per_category)
+                n_in_categories = dstSamples->n_in_categories[category];
+                if (n_in_categories < SAMPLES_PER_CATEGORY)
                 {
-                	if (!checkzero((char*)tmpSample.a, sizeof(u16)*lwe->n))
+                	if (!checkzero((char*)tmp_a, sizeof(u16)*lwe->n))
                 	{   
-	                    memcpy(dstSamples->list_categories[category].list[n_samples_in_category].a, tmpSample.a, lwe->n*sizeof(u16));
-	                    dstSamples->list_categories[category].list[n_samples_in_category].z = tmpSample.z;
-	                    // dstSamples->list_categories[category].list[n_samples_in_category].error = tmpSample.error;
-	                    dstSamples->list_categories[category].n_samples++;
-	                    dstSamples->n_samples++;
+                memcpy(&srcSamples->a_list[block_a*category+n_in_categories*lwe->n], tmp_a, lwe->n*sizeof(u16));
+                srcSamples->z_list[block_z*category+n_in_categories] = tmp_z;
+                srcSamples->n_in_categories[category]++;
+                srcSamples->n_samples++;
 	                    // if (dstSamples->n_samples == dstSamples->max_samples)
 		                   //  goto exit;
 	                }

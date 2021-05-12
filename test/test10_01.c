@@ -21,7 +21,6 @@
 #include "transition_times2_modq.h"
 #include "transition_bkw_step_smooth_lms.h"
 #include "transition_bkw_step_final.h"
-#include "lookup_tables.h"
 #include "solve_fwht.h"
 
 #include <stdio.h>
@@ -46,14 +45,10 @@ int main()
     time_stamp("Precomputation");
     precompute_cdf_table(alpha*q);
     lwe_init(&lwe, n, q, alpha);
-    if (createSumAndDiffTables(lwe.q)){
-        printf("ERROR precomputing Sums and Diffs tables\n");
-        return 0;
-    }
 
     time_stamp("LWE instance created");
 
-    samplesList Samples;
+    unsortedSamplesList Samples;
     create_lwe_samples(&Samples, &lwe, n_samples);
 
     time_stamp("Samples allocated: %ld", n_samples);
@@ -111,6 +106,7 @@ int main()
     for (int i=0; i<numReductionSteps-1; i++){
 
     	time_stamp("Perform smooth LMS reduction step %d/%d", i+1, numReductionSteps);
+        set_sorted_samples_list(dstSamples, lwe, &bkwStepPar[i+1], srcSamples->n_samples, max_categories);
         ret = transition_bkw_step_smooth_lms(&lwe, &bkwStepPar[i], &bkwStepPar[i+1], srcSamples, dstSamples);
 
         // clean past list
@@ -144,8 +140,6 @@ int main()
             original_binary_secret[i] = (lwe.s[i]+1) % 2;
     }
     // printf(")\n");
-
-    freeSumAndDiffTables();
 
     /* Solving phase - using Fast Walsh Hadamard Tranform */
 

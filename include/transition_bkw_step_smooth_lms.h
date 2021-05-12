@@ -20,7 +20,6 @@
 #include "lwe_instance.h"
 #include "position_values_2_category_index.h"
 #include "utils.h"
-#include "lookup_tables.h"
 
 int transition_bkw_step_smooth_lms(lweInstance *lwe, bkwStepParameters *dstBkwStepPar, sortedSamplesList *srcSamples, sortedSamplesList *dstSamples);
 

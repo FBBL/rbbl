@@ -26,7 +26,10 @@
 #define u32 uint32_t
 #define u64 uint64_t
 
-#define NUM_THREADS 12
-#define MAX_NUM_STORAGE_MUTEXES 100
+#define SAMPLES_PER_CATEGORY 6
+#define SAMPLES_INCREASE_FACTOR 0.05
+
+#define NUM_THREADS 1
+#define MAX_NUM_STORAGE_MUTEXES 1000
 
 #endif

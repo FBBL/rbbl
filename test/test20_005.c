@@ -21,7 +21,6 @@
 #include "transition_times2_modq.h"
 #include "transition_bkw_step_smooth_lms.h"
 #include "transition_bkw_step_final.h"
-#include "lookup_tables.h"
 #include "solve_fwht.h"
 #include "error_rate.h"
 
@@ -40,22 +39,18 @@ int main()
     lweInstance lwe;
     int n = 20;
     int q = 401;
-    double alpha = 0.005;
+    double alpha = 0.0001;
 
     time_stamp("LWE parameters: n: %d, q: %d, sigma: %lf*q. Initial samples: %lu", n, q, alpha, n_samples);
 
     time_stamp("Precomputation");
     precompute_cdf_table(alpha*q);
-    // if (createSumAndDiffTables(lwe.q)){
-    //     printf("ERROR precomputing Sums and Diffs tables\n");
-    //     return 0;
-    // }
 
     time_stamp("Create LWE instance");
     lwe_init(&lwe, n, q, alpha);
 
     time_stamp("Generate %lu samples", n_samples);
-    samplesList Samples;
+    unsortedSamplesList Samples;
     create_lwe_samples(&Samples, &lwe, n_samples);
 
     int start_index[NUM_REDUCTION_STEPS] =            {0,    2,   4,   6,   8,  11,  13,  16};
@@ -112,7 +107,7 @@ int main()
     /* multiply times 2 mod q and sort (unsorted) samples */
     time_stamp("Multiply samples times 2 modulo q");
     int ret = transition_times2_modq(&lwe, &bkwStepPar[0], &sortedSamples1, &Samples);
-    time_stamp("Number of samples: %d - %d samples per category", sortedSamples1.n_samples, sortedSamples1.n_samples_per_category);
+    time_stamp("Number of samples: %d", sortedSamples1.n_samples);
 
     // free original samples - save up memory
     free_samples(&Samples);
@@ -130,6 +125,7 @@ int main()
     for (int i=0; i<numReductionSteps-1; i++){
 
     	time_stamp("Perform smooth LMS reduction step %d/%d", i+1, numReductionSteps);
+        set_sorted_samples_list(dstSamples, &lwe, &bkwStepPar[i+1], srcSamples->n_samples, max_categories);
         ret = transition_bkw_step_smooth_lms(&lwe, &bkwStepPar[i+1], srcSamples, dstSamples);
 
         if(i != numReductionSteps-2){
@@ -143,7 +139,7 @@ int main()
             srcSamples = dstSamples;
         }
 
-        time_stamp("Number of samples: %d - %d samples per category", srcSamples->n_samples, srcSamples->n_samples_per_category);
+        time_stamp("Number of samples: %d", srcSamples->n_samples);
     }
 
     clock_gettime(CLOCK_REALTIME, &end);
@@ -155,10 +151,15 @@ int main()
     int i = numReductionSteps-1;
     time_stamp("Perform last smooth LMS reduction step %d/%d", numReductionSteps, numReductionSteps);
 
-    allocate_samples_list(&Samples, &lwe, samples_for_guessing); // actually one could have more or less samples
+    allocate_unsorted_samples_list(&Samples, &lwe, samples_for_guessing); // actually one could have more or less samples
     ret = transition_bkw_step_final(&lwe, &bkwStepPar[i], srcSamples, &Samples, samples_for_guessing);
 
     time_stamp("Number of samples: %d", Samples.n_samples);
+
+    for (int j = 0; j < n; j++)
+    {
+        printf("%d ", Samples.a_list[j]);
+    }printf("\n");
 
     // clean past list
     free_sorted_samples(srcSamples, max_categories);
@@ -175,8 +176,6 @@ int main()
             original_binary_secret[i] = (lwe.s[i]+1) % 2;
     }
     // printf(")\n");
-
-    freeSumAndDiffTables();
 
     error_rate(zero_positions, &Samples, &lwe);
 

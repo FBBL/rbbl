@@ -86,7 +86,7 @@ void FWHT (long* data, int size)
 
 
 /* Retrieve binary secret using Fast Walsh Hadamard Transform */
-int solve_fwht_search(u8 *binary_solution, int zero_positions, int fwht_positions, samplesList *reducedSamples, lweInstance *lwe)
+int solve_fwht_search(u8 *binary_solution, int zero_positions, int fwht_positions, unsortedSamplesList *reducedSamples, lweInstance *lwe)
 {
 
     int n = lwe->n;
@@ -116,8 +116,8 @@ int solve_fwht_search(u8 *binary_solution, int zero_positions, int fwht_position
     for (u64 i = 0; i < reducedSamples->n_samples; ++i)
     {
 
-        intsample = sample_to_int(reducedSamples->list[i].a + zero_positions, fwht_positions, q);
-        z = reducedSamples->list[i].z > (q-1)/2 ? (reducedSamples->list[i].z -q) : (reducedSamples->list[i].z);
+        intsample = sample_to_int(&reducedSamples->a_list[i*n + zero_positions], fwht_positions, q);
+        z = reducedSamples->z_list[i] > (q-1)/2 ? (reducedSamples->z_list[i] -q) : (reducedSamples->z_list[i]);
         lsb_z = z%2 == 0 ? 0 : 1;
         if (lsb_z == 0)
             list[intsample] += 1;
@@ -184,7 +184,7 @@ int nextBruteForceGuess(int min, int max, int ratio, int *BFguess, int lenght)
 // global variables
 typedef struct {
     lweInstance *lwe;
-    samplesList *Samples;
+    unsortedSamplesList *Samples;
     int bf_positions;
     int fwht_positions;
     int zero_positions;
@@ -237,8 +237,8 @@ void *single_work_bruteforce_guess(void *params){
         for (u64 i = 0; i < p->Samples->n_samples; ++i)
         {
 
-            intsample = sample_to_int(p->Samples->list[i].a + p->zero_positions, p->fwht_positions, q);
-            z = p->Samples->list[i].z;
+            intsample = sample_to_int(&p->Samples->a_list[i*p->lwe->n+ p->zero_positions], p->fwht_positions, q);
+            z = p->Samples->z_list[i];
             // update z with the bruteforce-guessed positions
             for(int j = 0; j<p->bf_positions; j++)
             {
@@ -246,12 +246,12 @@ void *single_work_bruteforce_guess(void *params){
                     tmp_si = BFguess[j]+q;
                 else
                     tmp_si = BFguess[j];
-                z = (z - ( p->Samples->list[i].a[p->zero_positions+p->fwht_positions+j]*tmp_si) % q );
+                z = (z - (p->Samples->a_list[i+p->zero_positions+p->fwht_positions+j]*tmp_si) % q );
                 if (z < 0)
                     z += q;
             }
             z = z > (q-1)/2 ? z -q : z;
-            intsample = sample_to_int(p->Samples->list[i].a + p->zero_positions, p->fwht_positions, q);
+            intsample = sample_to_int(&p->Samples->a_list[i + p->zero_positions], p->fwht_positions, q);
             lsb_z = z%2 == 0 ? 0 : 1;
 
             if (lsb_z == 0)
@@ -313,7 +313,7 @@ void *single_work_bruteforce_guess(void *params){
 
 /* Hybrid solver that uses brute-force for bf_positions number of positions and Fast Walsh Hadamard Transform for fftPositions number of positions
  */
-int solve_fwht_search_bruteforce(u8 *binary_solution, short *bf_solution, int zero_positions, int bf_positions, int fwht_positions, samplesList *reducedSamples, lweInstance *lwe)
+int solve_fwht_search_bruteforce(u8 *binary_solution, short *bf_solution, int zero_positions, int bf_positions, int fwht_positions, unsortedSamplesList *reducedSamples, lweInstance *lwe)
 {
     int q = lwe->q;
     int n = lwe->n;

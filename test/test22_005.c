@@ -21,7 +21,6 @@
 #include "transition_times2_modq.h"
 #include "transition_bkw_step_smooth_lms.h"
 #include "transition_bkw_step_final.h"
-#include "lookup_tables.h"
 #include "solve_fwht.h"
 #include "error_rate.h"
 
@@ -46,16 +45,12 @@ int main()
 
     time_stamp("Precomputation");
     precompute_cdf_table(alpha*q);
-    // if (createSumAndDiffTables(lwe.q)){
-    //     printf("ERROR precomputing Sums and Diffs tables\n");
-    //     return 0;
-    // }
 
     time_stamp("Create LWE instance");
     lwe_init(&lwe, n, q, alpha);
 
     time_stamp("Generate %lu samples", n_samples);
-    samplesList Samples;
+    unsortedSamplesList Samples;
     create_lwe_samples(&Samples, &lwe, n_samples);
 
     int start_index[NUM_REDUCTION_STEPS] =            {0,    2,   4,   6,   8,  11,  13,  16};
@@ -127,6 +122,7 @@ int main()
     for (int i=0; i<numReductionSteps-1; i++){
 
     	time_stamp("Perform smooth LMS reduction step %d/%d", i+1, numReductionSteps);
+        set_sorted_samples_list(dstSamples, lwe, &bkwStepPar[i+1], srcSamples->n_samples, max_categories);
         ret = transition_bkw_step_smooth_lms(&lwe, &bkwStepPar[i+1], srcSamples, dstSamples);
 
         if(i != numReductionSteps-2){
@@ -167,8 +163,6 @@ int main()
             original_binary_secret[i] = (lwe.s[i]+1) % 2;
     }
     // printf(")\n");
-
-    freeSumAndDiffTables();
 
     error_rate(zero_positions, &Samples, &lwe);
 

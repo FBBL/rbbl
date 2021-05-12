@@ -19,6 +19,6 @@
 
 #include "lwe_instance.h"
 
-int error_rate(int zero_positions, samplesList *Samples, lweInstance *lwe);
+int error_rate(int zero_positions, unsortedSamplesList *Samples, lweInstance *lwe);
 
 #endif /* ERROR_RATE_H */

@@ -23,7 +23,7 @@
 
 
 /* Compute Error rate when all positions have been reduced and no bruteforce is used */
-int error_rate(int zero_positions, samplesList *Samples, lweInstance *lwe)
+int error_rate(int zero_positions, unsortedSamplesList *Samples, lweInstance *lwe)
 {
 
     int n = lwe->n;
@@ -46,11 +46,22 @@ int error_rate(int zero_positions, samplesList *Samples, lweInstance *lwe)
     for (u64 i = 0; i < Samples->n_samples; i++)
     {
         sum = 0;
-        for (int j = zero_positions; j < n; j++){
-            bina = Samples->list[i].a[j] < q/2 ? Samples->list[i].a[j] % 2 : (Samples->list[i].a[j] +1) % 2;
+        for (int j = zero_positions; j < n; j++)
+        {
+            bina = Samples->a_list[i*n+j] < q/2 ? Samples->a_list[i*n+j] % 2 : (Samples->a_list[i*n+j] +1) % 2;
             sum = (sum + bina*bin_secret[j]) % 2;
         }
-        binz = Samples->list[i].z < q/2 ? Samples->list[i].z % 2 : (Samples->list[i].z +1) % 2;
+        binz = Samples->z_list[i] < q/2 ? Samples->z_list[i] % 2 : (Samples->z_list[i] +1) % 2;
+
+        if (i == 1){
+                for (int k = 0; k < n; k++)
+                {
+                    printf("%d ", Samples->a_list[k]);
+                }printf(" - ");
+            printf("%d %d \n", sum, binz );
+            printf("\n");
+        }
+
         errors += sum == binz ? 0 : 1;
     }
 

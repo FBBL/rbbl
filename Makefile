@@ -17,14 +17,14 @@ LDIR = -L /usr/lib/ -L /usr/local/lib/ -L ./$(OBJ_dir)
 LIBS= -lm -lpthread
 
 # headers
-_HEADER_files = config.h  utils.h  lwe_instance.h transition_times2_modq.h position_values_2_category_index.h transition_bkw_step_smooth_lms.h lookup_tables.h transition_bkw_step_final.h solve_fwht.h random_utils.h error_rate.h
+_HEADER_files = config.h  utils.h  lwe_instance.h transition_times2_modq.h position_values_2_category_index.h transition_bkw_step_smooth_lms.h transition_bkw_step_final.h solve_fwht.h random_utils.h error_rate.h
 HEADER_files = $(patsubst %,$(INCLUDE_dir)/%,$(_HEADER_files))
 # source and objects
-_SRC_files =  utils.c lwe_instance.c transition_times2_modq.c position_values_2_category_index.c transition_bkw_step_smooth_lms.c lookup_tables.c transition_bkw_step_final.c solve_fwht.c random_utils.c error_rate.c
+_SRC_files =  utils.c lwe_instance.c transition_times2_modq.c position_values_2_category_index.c transition_bkw_step_smooth_lms.c transition_bkw_step_final.c solve_fwht.c random_utils.c error_rate.c
 SRC_files = $(patsubst %,$(SRC_dir)/%,$(_SRC_files))
 OBJ_files = $(patsubst %.c,$(OBJ_dir)/%.o,$(_SRC_files))
 
-all: $(OBJ_dir) test20_005 test22_005 test40_005  # test10_01  
+all: $(OBJ_dir) test20_005 # test22_005 test40_005  # test10_01  
 
 # create build directory
 $(OBJ_dir):

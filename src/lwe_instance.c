@@ -16,48 +16,40 @@
 
 #include "lwe_instance.h"
 #include "utils.h"
+#include "random_utils.h"
 
 #include <stdio.h>
 #include <math.h>
 #include <time.h>
 #include <string.h>
 
-#define LEN_MAX_CDF 200
+#define PI 3.14159265359
 
-static u32 CDF_TABLE[LEN_MAX_CDF];
-
-static int CDF_TABLE_LEN = 0;
-
-/* Gaussian Distribution PDF */
-const double pi = 3.141592653589793;
-const double e = 2.718281828459045;
-double normal_PDF(int x, double mean, double sigma)
+static int roundInt(double d)
 {
-    return (1/(sigma*sqrt(2*pi)))*exp(-0.5*(((x-mean)/sigma)*((x-mean)/sigma)));
+    return d > 0.0 ? d + 0.5 : d - 0.5;
 }
 
-void precompute_cdf_table(double sigma)
+/* adapted malb */
+int chi(double sigma, rand_ctx *rnd)
 {
-
-    CDF_TABLE_LEN = 4*sigma+2;
-    if (CDF_TABLE_LEN>LEN_MAX_CDF)
-    {
-        printf("ERROR: CDF_TABLE_LEN>LEN_MAX_CDF\n");
-        exit(0);
-    }
-
-    int len_x = 16;
-    double sum;
-
-    CDF_TABLE[0] = (1<<(len_x-1))*normal_PDF(0, 0, sigma)-1;
-    for (int z = 1; z < CDF_TABLE_LEN; z++)
-    {
-        sum = 0;
-        for (int i = 1; i <= z; i++)
-            sum += normal_PDF(i, 0, sigma);
-        CDF_TABLE[z] = CDF_TABLE[0]+(1<<len_x)*sum;
-    }
-
+#if 1
+    const double aa = randomUtilDouble(rnd);
+    const double a = aa == 0 ? 0 : sqrt(-2 * log(aa));
+    const double b = 2 * PI * randomUtilDouble(rnd);
+    const double x = sigma * a * cos(b);
+    //const double y = sigma * a * sin(b);
+    int ret = roundInt(x);
+    return ret;
+#else
+    const double aa = rand() / (double)RAND_MAX;
+    const double a = aa == 0 ? 0 : sqrt(-2 * log(aa));
+    const double b = 2 * PI * rand() / (double)RAND_MAX;
+    const double x = sigma * a * cos(b);
+    //const double y = sigma * a * sin(b);
+    int ret = roundInt(x);
+    return ret;
+#endif
 }
 
 /* Initialize LWE struct, store secret (distributed as the noise) */
@@ -65,8 +57,8 @@ void lwe_init(lweInstance *lwe, u16 n, u16 q, double alpha){
 
     lwe->n = n;
     lwe->q = q;
-    lwe->alpha = alpha/10;
-    lwe->sigma = alpha/10*q;
+    lwe->alpha = alpha;
+    lwe->sigma = alpha*q;
 
     srand(time(NULL));
     randomUtilRandomize();
@@ -77,25 +69,9 @@ void lwe_init(lweInstance *lwe, u16 n, u16 q, double alpha){
 
     unsigned int i, j;
 
-    if(!CDF_TABLE_LEN){
-        printf("ERROR: one must first precompute CDF table\n");
-        exit(0);
-    }
-
     for (i = 0; i < n; i++)
     {
-        u16 sample = 0;
-        u16 prnd = lwe->s[i] >> 1;    // Drop the least significant bit
-        u16 sign = lwe->s[i] & 0x1;    // Pick the least significant bit
-
-        // No need to compare with the last value.
-        for (j = 0; j < (unsigned int)(CDF_TABLE_LEN - 1); j++)
-        {
-            // Constant time comparison: 1 if CDF_TABLE[j] < s, 0 otherwise. Uses the fact that CDF_TABLE[j] and s fit in 15 bits.
-            sample += (u16)(CDF_TABLE[j] - prnd) >> 15;
-        }
-        // Assuming that sign is either 0 or 1, flips sample iff sign = 1. WARNING: NOT CONSTANT TIME
-        lwe->s[i] = sign ? sample : (q-sample) % q;
+        lwe->s[i] = (chi(lwe->sigma, NULL) + q) % q;
         printf("%d ", lwe->s[i]);
     }printf("\n");
 }
@@ -127,24 +103,10 @@ void create_lwe_samples(unsortedSamplesList *Samples, lweInstance *lwe, u64 n_sa
         }
 
         // sample error
-        error = (u16)(rand());
-        u16 sample = 0;
-        u16 prnd = error >> 1;    // Drop the least significant bit
-        u16 sign = error & 0x1;    // Pick the least significant bit
-
-        // No need to compare with the last value.
-        for (int j = 0; j < (unsigned int)(CDF_TABLE_LEN - 1); j++)
-        {
-            // Constant time comparison: 1 if CDF_TABLE[j] < s, 0 otherwise. Uses the fact that CDF_TABLE[j] and s fit in 15 bits.
-            sample += (u16)(CDF_TABLE[j] - prnd) >> 15;
-        }
-        // Assuming that sign is either 0 or 1, flips sample iff sign = 1. WARNING: NOT CONSTANT TIME
-        error = sign ? sample : (q-sample) % q;
-
+        error = (chi(lwe->sigma, &lwe->ctx) + q) % q;
+ 
         // z = a*s + e mod q
         Samples->z_list[i] = (Samples->z_list[i] + error) % q;
-
-        // printf("error %d\n", error);
     }
 
 }

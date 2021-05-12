@@ -49,6 +49,21 @@ int sample_times2_modq(u16 *dst_a, u16 *dst_z, u16 *src_a, u16 src_z, lweInstanc
     return index;
 }
 
+void verify_samplex2(u16 *a, u16 z, u16 e, lweInstance *lwe){
+
+    int sum = 0;
+    for (int k = 0; k < lwe->n; ++k)
+    {
+        sum = (sum + a[k]*lwe->s[k]) % lwe->q;
+    }
+    sum = (sum + e) % lwe->q;
+    if (sum != z)
+    {
+        printf("TADAAA in sample verification x2\n");
+        exit(0);
+    }
+}
+
 void *single_thread_work(void *params){
 
     Params *p = (Params*)params;
@@ -59,13 +74,19 @@ void *single_thread_work(void *params){
 
     u16 tmp_a[p->lwe->n];
     u16 tmp_z = 0;
+    u16 tmp_e;
 
     int block_a = p->lwe->n*SAMPLES_PER_CATEGORY;
     int block_z = SAMPLES_PER_CATEGORY;
 
     for(count = p->min; count < p->max; count++)
     {
-        category = sample_times2_modq(tmp_a, &tmp_z, &p->unsortedSamples->a_list[count], p->unsortedSamples->z_list[count], p->lwe, p->bkwStepPar);
+        category = sample_times2_modq(tmp_a, &tmp_z, &p->unsortedSamples->a_list[count*p->lwe->n], p->unsortedSamples->z_list[count], p->lwe, p->bkwStepPar);
+
+        // error - DEBUG
+        tmp_e = (p->unsortedSamples->e_list[count] << 1) % p->lwe->q;
+
+        verify_samplex2(tmp_a, tmp_z, tmp_e, p->lwe);
 
         n_samples_in_category = p->sortedSamples->n_in_categories[category];
 
@@ -85,6 +106,9 @@ void *single_thread_work(void *params){
                 }
                 memcpy(&p->sortedSamples->a_list[block_a*category+n_samples_in_category*p->lwe->n], tmp_a, p->lwe->n*sizeof(u16));
                 p->sortedSamples->z_list[block_z*category+n_samples_in_category] = tmp_z;
+                // printf("%d %d\n", p->sortedSamples->z_list[block_z*category+n_samples_in_category], tmp_z);
+                // error - DEBUG
+                p->sortedSamples->e_list[block_z*category+n_samples_in_category] = tmp_e;
                 p->sortedSamples->n_in_categories[category]++;
                 p->sortedSamples->n_samples++;
             }

@@ -44,8 +44,8 @@ static u64 subtractSamples(lweInstance *lwe, u16 *dst_a, u16 *dst_z, u16 *src1_a
         dst_a[i] = (src1_a[i] - src2_a[i] + lwe->q);
         dst_a[i] = dst_a[i] >= lwe->q ? dst_a[i] -lwe->q : dst_a[i];
     }
-    *dst_z = (src2_z - src2_z + lwe->q);
-    *dst_z = *dst_z >= lwe->q ? *dst_z -lwe->q : *dst_z;
+    *dst_z = (lwe->q + src1_z - src2_z) ;
+    *dst_z = *dst_z >= lwe->q ? (*dst_z) -lwe->q : *dst_z;
 
     u64 index = position_values_2_category_index(lwe, bkwStepPar, dst_a + bkwStepPar->startIndex);
 
@@ -59,12 +59,28 @@ static u64 addSamples(lweInstance *lwe, u16 *dst_a, u16 *dst_z, u16 *src1_a, u16
         dst_a[i] = (src1_a[i] + src2_a[i]);
         dst_a[i] = dst_a[i] >= lwe->q ? dst_a[i] -lwe->q : dst_a[i];
     }
-    *dst_z = (src2_z + src2_z);
+    *dst_z = (src1_z + src2_z);
     *dst_z = *dst_z >= lwe->q ? *dst_z -lwe->q : *dst_z;
 
     u64 index = position_values_2_category_index(lwe, bkwStepPar, dst_a + bkwStepPar->startIndex);
 
     return index;
+}
+
+
+void verify_sample(u16 *a, u16 z, u16 e, lweInstance *lwe){
+
+	int sum = 0;
+	for (int k = 0; k < lwe->n; ++k)
+    {
+        sum = (sum + a[k]*lwe->s[k]) % lwe->q;
+    }
+    sum = (sum + e) % lwe->q;
+    if (sum != z)
+    {
+        printf("TADAAA in sample verification\n");
+        exit(0);
+    }
 }
 
 
@@ -81,6 +97,7 @@ void *single_thread_lf2_work(void *params){
 
     u16 tmp_a[p->lwe->n];
     u16 tmp_z = 0;
+    u16 tmp_e;
 
    	u16 in, jn;
 
@@ -102,7 +119,25 @@ void *single_thread_lf2_work(void *params){
 	        for (int j=i+1; j < p->srcSamples->n_in_categories[index1]; j++)
 	        {
 	        	jn = j*p->lwe->n;
-	            category = subtractSamples(p->lwe, tmp_a, &tmp_z, &p->srcSamples->a_list[index1*block_a +in], p->srcSamples->z_list[index1*block_z +in], &p->srcSamples->a_list[index1*block_a +jn], p->srcSamples->z_list[index1*block_z +jn], p->bkwStepPar);
+
+	        	// printf("%d\n", p->srcSamples->z_list[index1*block_z +in]);
+	            category = subtractSamples(p->lwe, tmp_a, &tmp_z, &p->srcSamples->a_list[index1*block_a +in], p->srcSamples->z_list[index1*block_z +i], &p->srcSamples->a_list[index1*block_a +jn], p->srcSamples->z_list[index1*block_z +j], p->bkwStepPar);
+
+	            // error - DEBUG
+	            tmp_e = (p->srcSamples->e_list[index1*block_z +i] - p->srcSamples->e_list[index1*block_z +j] +p->lwe->q) %p->lwe->q;
+
+	            // for (int k = 0; k < p->lwe->n; k++)
+	            // {
+	            // 	printf("%d - %d = %d\n", &p->srcSamples->a_list[index1*block_a +in + k], &p->srcSamples->a_list[index2*block_a +in + k], tmp_a[k]);
+	            	
+
+	            // }
+
+
+
+
+	            verify_sample(tmp_a, tmp_z, tmp_e, p->lwe);
+
 	            mutex_index = category / n_storage_mutex;
 
 	            if (category > p->dstSamples->n_categories || category < 0)
@@ -122,6 +157,7 @@ void *single_thread_lf2_work(void *params){
 	            	{
 	                    memcpy(&p->dstSamples->a_list[category*block_a + n_in_categories*p->lwe->n], tmp_a, p->lwe->n*sizeof(u16));
 	                    p->dstSamples->z_list[category*block_z +n_in_categories] = tmp_z;
+	                    p->dstSamples->e_list[category*block_z +n_in_categories] = tmp_e;
 	                    p->dstSamples->n_in_categories[category]++;
 	                    p->dstSamples->n_samples++;
 
@@ -144,7 +180,13 @@ void *single_thread_lf2_work(void *params){
 	        for (int j=i+1; j < p->srcSamples->n_in_categories[index2]; j++)
 	        {
 	        	jn = j*p->lwe->n;
-	            category = subtractSamples(p->lwe, tmp_a, &tmp_z, &p->srcSamples->a_list[index2*block_a +in], p->srcSamples->z_list[index2*block_z +in], &p->srcSamples->a_list[index2*block_a +jn], p->srcSamples->z_list[index2*block_z +jn], p->bkwStepPar);
+	            category = subtractSamples(p->lwe, tmp_a, &tmp_z, &p->srcSamples->a_list[index2*block_a +in], p->srcSamples->z_list[index2*block_z +i], &p->srcSamples->a_list[index2*block_a +jn], p->srcSamples->z_list[index2*block_z +j], p->bkwStepPar);
+	            
+				// error - DEBUG
+	            tmp_e = (p->srcSamples->e_list[index2*block_z +i] - p->srcSamples->e_list[index2*block_z +j] +p->lwe->q) %p->lwe->q;
+
+	            // verify_sample(tmp_a, tmp_z, tmp_e, p->lwe);
+
 	            mutex_index = category / n_storage_mutex;
 
 	            if (category > p->dstSamples->n_categories || category < 0)
@@ -164,6 +206,7 @@ void *single_thread_lf2_work(void *params){
 	            	{
 	                    memcpy(&p->dstSamples->a_list[category*block_a +n_in_categories*p->lwe->n], tmp_a, p->lwe->n*sizeof(u16));
 	                    p->dstSamples->z_list[category*block_z +n_in_categories] = tmp_z;
+	                    p->dstSamples->e_list[category*block_z +n_in_categories] = tmp_e;
 	                    p->dstSamples->n_in_categories[category]++;
 	                    p->dstSamples->n_samples++;
 
@@ -186,7 +229,13 @@ void *single_thread_lf2_work(void *params){
 	        for (int j=0; j<p->srcSamples->n_in_categories[index2]; j++)
 	        {
 	        	jn = j*p->lwe->n;
-	            category = addSamples(p->lwe, tmp_a, &tmp_z, &p->srcSamples->a_list[index1*block_a +in], p->srcSamples->z_list[index1*block_z +in], &p->srcSamples->a_list[index2*block_a +jn], p->srcSamples->z_list[index2*block_z +jn], p->bkwStepPar);
+	            category = addSamples(p->lwe, tmp_a, &tmp_z, &p->srcSamples->a_list[index1*block_a +in], p->srcSamples->z_list[index1*block_z +i], &p->srcSamples->a_list[index2*block_a +jn], p->srcSamples->z_list[index2*block_z +j], p->bkwStepPar);
+
+	            // verify_sample(tmp_a, tmp_z, tmp_e, p->lwe);
+	            
+				// error - DEBUG
+	            tmp_e = (p->srcSamples->e_list[index1*block_z +i] + p->srcSamples->e_list[index2*block_z +j] +p->lwe->q) %p->lwe->q;
+
 	            mutex_index = category / n_storage_mutex;
 
 	            if (category > p->dstSamples->n_categories || category < 0)
@@ -206,6 +255,7 @@ void *single_thread_lf2_work(void *params){
 	            	{	                    
 	                    memcpy(&p->dstSamples->a_list[category*block_a +n_in_categories*p->lwe->n], tmp_a, p->lwe->n*sizeof(u16));
 	                    p->dstSamples->z_list[category*block_z +n_in_categories] = tmp_z;
+	                    p->dstSamples->e_list[category*block_z +n_in_categories] = tmp_e;
 	                    p->dstSamples->n_in_categories[category]++;
 	                    p->dstSamples->n_samples++;
 
@@ -230,6 +280,7 @@ int transition_bkw_step_smooth_lms(lweInstance *lwe, bkwStepParameters *bkwStepP
 
     u16 tmp_a[lwe->n];
     u16 tmp_z = 0;
+    u16 tmp_e;
 
     u64 category, minc;
     int n_in_categories;
@@ -248,6 +299,9 @@ int transition_bkw_step_smooth_lms(lweInstance *lwe, bkwStepParameters *bkwStepP
             {
                 category = subtractSamples(lwe, tmp_a, &tmp_z, &srcSamples->a_list[0+i*lwe->n], srcSamples->z_list[0+i], &srcSamples->a_list[0+j*lwe->n], srcSamples->z_list[j], bkwStepPar);
                 
+                // error - DEBUG
+                tmp_e = (srcSamples->z_list[0+i] - srcSamples->z_list[j] + lwe->q) %lwe->q;
+
                 if (category > dstSamples->n_categories || category < 0)
                 {
                     printf("ERROR subtractSamples: category %lu tot categories %lu \n", category, dstSamples->n_categories );
@@ -262,6 +316,7 @@ int transition_bkw_step_smooth_lms(lweInstance *lwe, bkwStepParameters *bkwStepP
                 	{   
                 memcpy(&srcSamples->a_list[block_a*category+n_in_categories*lwe->n], tmp_a, lwe->n*sizeof(u16));
                 srcSamples->z_list[block_z*category+n_in_categories] = tmp_z;
+                srcSamples->e_list[block_z*category+n_in_categories] = tmp_e;
                 srcSamples->n_in_categories[category]++;
                 srcSamples->n_samples++;
 	                    // if (dstSamples->n_samples == dstSamples->max_samples)

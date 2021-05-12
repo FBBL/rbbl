@@ -53,14 +53,26 @@ int error_rate(int zero_positions, unsortedSamplesList *Samples, lweInstance *lw
         }
         binz = Samples->z_list[i] < q/2 ? Samples->z_list[i] % 2 : (Samples->z_list[i] +1) % 2;
 
-        if (i == 1){
-                for (int k = 0; k < n; k++)
-                {
-                    printf("%d ", Samples->a_list[k]);
-                }printf(" - ");
-            printf("%d %d \n", sum, binz );
-            printf("\n");
-        }
+        // if (i == 1){
+        //         for (int k = 0; k < n; k++)
+        //         {
+        //             printf("%d ", Samples->a_list[k]);
+        //         }printf(" - ");
+        //     printf("%d %d \n", sum, binz );
+        //     printf("\n");
+        // }
+
+        // if(i % 1000 == 0)
+        // {
+        //     int sum = 0;
+        //     for (int k = 0; k < n; ++k)
+        //     {
+        //         sum = (sum + Samples->a_list[i*n+k]*lwe->s[k]) % q;
+        //     }
+        //     sum = (sum + Samples->e_list[i]) % q;
+        //     printf("%d - %d\n", sum, Samples->z_list[i]);
+        // }
+
 
         errors += sum == binz ? 0 : 1;
     }
@@ -69,4 +81,59 @@ int error_rate(int zero_positions, unsortedSamplesList *Samples, lweInstance *lw
 
     return 0;
 }
+
+
+
+int verify_samples(int zero_positions, sortedSamplesList *Samples, lweInstance *lwe){
+
+    int n = lwe->n;
+    int q = lwe->q;
+
+    for (int j = 0; j < Samples->n_categories; j++)
+    {
+        for (int i = 0; i < Samples->n_in_categories[j]; ++i)
+        {
+            int sum = 0;
+            for (int k = 0; k < n; ++k)
+            {
+                sum = (sum + Samples->a_list[SAMPLES_PER_CATEGORY*n*j + i*n + k]*lwe->s[k]) % q;
+            }
+            sum = (sum + Samples->e_list[SAMPLES_PER_CATEGORY*j +i]) % q;
+            if (sum != Samples->z_list[SAMPLES_PER_CATEGORY*j +i])
+            {
+                printf("ERROR in sample verification\n");
+                exit(0);
+            }
+        }
+        
+    }
+
+    return 0;
+
+}
+
+
+int verify_unsorted_samples(int zero_positions, unsortedSamplesList *Samples, lweInstance *lwe){
+
+    int n = lwe->n;
+    int q = lwe->q;
+
+    for (int i = 0; i < Samples->n_samples; ++i)
+    {
+        int sum = 0;
+        for (int k = 0; k < n; ++k)
+        {
+            sum = (sum + Samples->a_list[i*n + k]*lwe->s[k]) % q;
+        }
+        sum = (sum + Samples->e_list[i]) % q;
+        if (sum != Samples->z_list[i])
+        {
+            printf("ERROR in unsorted sample verification\n");
+            exit(0);
+        }
+    }
+
+}
+
+
 

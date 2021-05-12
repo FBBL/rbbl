@@ -41,6 +41,7 @@ typedef struct
 {
     u16 *a_list; // list of samples
     u16 *z_list; // list of z = a.s + e
+    u16 *e_list; 
     u32 n_samples;
     u64 max_samples;
 } unsortedSamplesList;
@@ -49,7 +50,8 @@ typedef struct
 {
     u16 *a_list; // list of samples
     u16 *z_list; // list of z = a.s + e
-    u8 *n_in_categories;
+    u16 *e_list; 
+    u8  *n_in_categories;
     u64 n_categories;
     u64 n_samples;
     u64 max_samples;

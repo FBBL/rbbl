@@ -86,6 +86,7 @@ void create_lwe_samples(unsortedSamplesList *Samples, lweInstance *lwe, u64 n_sa
     Samples->max_samples = n_samples;
     Samples->a_list = calloc(n_samples*n, sizeof(u16));
     Samples->z_list = calloc(n_samples, sizeof(u16));
+    Samples->e_list = calloc(n_samples, sizeof(u16));
 
     int seed = get_seed(), in;
     u16 error;
@@ -103,10 +104,10 @@ void create_lwe_samples(unsortedSamplesList *Samples, lweInstance *lwe, u64 n_sa
         }
 
         // sample error
-        error = (chi(lwe->sigma, &lwe->ctx) + q) % q;
+        Samples->e_list[i] = (chi(lwe->sigma, &lwe->ctx) + q) % q;
  
         // z = a*s + e mod q
-        Samples->z_list[i] = (Samples->z_list[i] + error) % q;
+        Samples->z_list[i] = (Samples->z_list[i] + Samples->e_list[i]) % q;
     }
 
 }
@@ -118,9 +119,11 @@ void allocate_unsorted_samples_list(unsortedSamplesList *Samples, lweInstance *l
     Samples->n_samples = 0;
     Samples->a_list = malloc(n_samples*lwe->n * sizeof(u16));
     Samples->z_list = malloc(n_samples * sizeof(u16));
+    Samples->e_list = malloc(n_samples * sizeof(u16));
 
     ASSERT(Samples->a_list != NULL, "Failed allocation");
     ASSERT(Samples->z_list != NULL, "Failed allocation");
+    ASSERT(Samples->e_list != NULL, "Failed allocation");
 
     Samples->max_samples = n_samples;
 }
@@ -131,6 +134,7 @@ void free_samples(unsortedSamplesList *Samples){
 
     free(Samples->a_list);
     free(Samples->z_list);
+    free(Samples->e_list);
 
     Samples->n_samples = 0;
 }
@@ -140,6 +144,7 @@ void free_sorted_samples(sortedSamplesList *Samples, u64 max_categories){
 
     free(Samples->a_list);
     free(Samples->z_list);
+    free(Samples->e_list);
     free(Samples->n_in_categories);
 
     Samples->n_samples = 0;
@@ -212,8 +217,10 @@ void allocate_sorted_samples_list(sortedSamplesList *Samples, lweInstance *lwe, 
 
     Samples->a_list = malloc(lwe->n*max_categories*6 * sizeof(u16));
     Samples->z_list = malloc(max_categories*6 * sizeof(u16));
+    Samples->e_list = malloc(max_categories*6 * sizeof(u16));
     ASSERT(Samples->a_list != NULL, "Failed allocation");
     ASSERT(Samples->z_list != NULL, "Failed allocation");
+    ASSERT(Samples->e_list != NULL, "Failed allocation");
 
     Samples->n_in_categories = calloc(max_categories, sizeof(u8));
     Samples->n_samples = 0;

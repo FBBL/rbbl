@@ -44,7 +44,7 @@ static u64 subtractSamples(lweInstance *lwe, u16 *dst_a, u16 *dst_z, u16 *src1_a
         dst_a[i] = (src1_a[i] - src2_a[i] + lwe->q);
         dst_a[i] = dst_a[i] >= lwe->q ? dst_a[i] -lwe->q : dst_a[i];
     }
-    *dst_z = (src2_z - src2_z + lwe->q);
+    *dst_z = (src1_z - src2_z + lwe->q);
     *dst_z = *dst_z >= lwe->q ? *dst_z -lwe->q : *dst_z;
 
     return 0;
@@ -57,7 +57,7 @@ static u64 addSamples(lweInstance *lwe, u16 *dst_a, u16 *dst_z, u16 *src1_a, u16
         dst_a[i] = (src1_a[i] + src2_a[i]);
         dst_a[i] = dst_a[i] >= lwe->q ? dst_a[i] -lwe->q : dst_a[i];
     }
-    *dst_z = (src2_z + src2_z);
+    *dst_z = (src1_z + src2_z);
     *dst_z = *dst_z >= lwe->q ? *dst_z -lwe->q : *dst_z;
 
     return 0;
@@ -88,6 +88,7 @@ void *single_thread_final_lf2_work(void *params){
 
     u16 tmp_a[p->lwe->n];
     u16 tmp_z = 0;
+    u16 tmp_e;
 
     u16 in, jn;
 
@@ -113,7 +114,10 @@ void *single_thread_final_lf2_work(void *params){
             for (int j=i+1; j < p->srcSamples->n_in_categories[index1]; j++)
             {
                 jn = j*p->lwe->n;
-                subtractSamples(p->lwe, tmp_a, &tmp_z, &p->srcSamples->a_list[index1*block_a +in], p->srcSamples->z_list[index1*block_z +in], &p->srcSamples->a_list[index1*block_a+jn], p->srcSamples->z_list[index1*block_z +jn]);
+                subtractSamples(p->lwe, tmp_a, &tmp_z, &p->srcSamples->a_list[index1*block_a +in], p->srcSamples->z_list[index1*block_z +i], &p->srcSamples->a_list[index1*block_a+jn], p->srcSamples->z_list[index1*block_z +j]);
+
+                // error - DEBUG
+                tmp_e = (p->srcSamples->e_list[index1*block_z +i] - p->srcSamples->e_list[index1*block_z +j] +p->lwe->q) %p->lwe->q;
 
                 // add it to the new list
             	if (!checkzero((char*)tmp_a, sizeof(u16)*p->lwe->n) && unnaturalSelection(p->lwe, tmp_a, p->bkwStepPar))
@@ -129,6 +133,7 @@ void *single_thread_final_lf2_work(void *params){
                     pthread_mutex_unlock(&tot_count_mutex);                    
                     memcpy(&p->dstSamples->a_list[sample_index*p->lwe->n], tmp_a, p->lwe->n*sizeof(u16));
                     p->dstSamples->z_list[sample_index] = tmp_z;
+                    p->dstSamples->e_list[sample_index] = tmp_e;
                 }
                 else
                 {
@@ -144,8 +149,11 @@ void *single_thread_final_lf2_work(void *params){
             for (int j=i+1; j < p->srcSamples->n_in_categories[index2]; j++)
             {
                 jn = j*p->lwe->n;
-                subtractSamples(p->lwe, tmp_a, &tmp_z, &p->srcSamples->a_list[index2*block_a +in], p->srcSamples->z_list[index2*block_z +in], &p->srcSamples->a_list[index2*block_a+jn], p->srcSamples->z_list[index2*block_z +jn]);
-                
+                subtractSamples(p->lwe, tmp_a, &tmp_z, &p->srcSamples->a_list[index2*block_a +in], p->srcSamples->z_list[index2*block_z +i], &p->srcSamples->a_list[index2*block_a+jn], p->srcSamples->z_list[index2*block_z +j]);
+
+                // error - DEBUG
+                tmp_e = (p->srcSamples->e_list[index2*block_z +i] - p->srcSamples->e_list[index2*block_z +j] +p->lwe->q) %p->lwe->q;
+
                 // add it to the new list
             	if (!checkzero((char*)tmp_a, sizeof(u16)*p->lwe->n) && unnaturalSelection(p->lwe, tmp_a, p->bkwStepPar))
                 {
@@ -160,6 +168,7 @@ void *single_thread_final_lf2_work(void *params){
                     pthread_mutex_unlock(&tot_count_mutex);
                     memcpy(&p->dstSamples->a_list[sample_index*p->lwe->n], tmp_a, p->lwe->n*sizeof(u16));
                     p->dstSamples->z_list[sample_index] = tmp_z;
+                    p->dstSamples->e_list[sample_index] = tmp_e;
                 }
                 else
                 {
@@ -175,7 +184,10 @@ void *single_thread_final_lf2_work(void *params){
             for (int j=0; j < p->srcSamples->n_in_categories[index2]; j++)
             {
                 jn = j*p->lwe->n;
-                addSamples(p->lwe, tmp_a, &tmp_z, &p->srcSamples->a_list[index1*block_a+in], p->srcSamples->z_list[index1*block_z +in], &p->srcSamples->a_list[index2*block_a +jn], p->srcSamples->z_list[index2*block_z +jn]);
+                addSamples(p->lwe, tmp_a, &tmp_z, &p->srcSamples->a_list[index1*block_a+in], p->srcSamples->z_list[index1*block_z +i], &p->srcSamples->a_list[index2*block_a +jn], p->srcSamples->z_list[index2*block_z +j]);
+
+                // error - DEBUG
+                tmp_e = (p->srcSamples->e_list[index1*block_z +i] + p->srcSamples->e_list[index2*block_z +j] +p->lwe->q) %p->lwe->q;
                 
                 // add it to the new list
             	if (!checkzero((char*)tmp_a, sizeof(u16)*p->lwe->n) && unnaturalSelection(p->lwe, tmp_a, p->bkwStepPar))
@@ -191,6 +203,8 @@ void *single_thread_final_lf2_work(void *params){
                     pthread_mutex_unlock(&tot_count_mutex);
                     memcpy(&p->dstSamples->a_list[sample_index*p->lwe->n], tmp_a, p->lwe->n*sizeof(u16));
                     p->dstSamples->z_list[sample_index] = tmp_z;
+
+                    p->dstSamples->e_list[sample_index] = tmp_e;
                 }
                 else
                 {
@@ -212,6 +226,7 @@ int transition_bkw_step_final(lweInstance *lwe, bkwStepParameters *srcBkwStepPar
 
     u16 tmp_a[lwe->n];
     u16 tmp_z = 0;
+    u16 tmp_e;
 
     u64 index1, index2, minc, sample_index;
     dstSamples->n_samples = 0;
@@ -224,8 +239,11 @@ int transition_bkw_step_final(lweInstance *lwe, bkwStepParameters *srcBkwStepPar
         {
             for (int j=i+1; j < srcSamples->n_in_categories[0]; j++)
             {
-                subtractSamples(lwe, tmp_a, &tmp_z, &srcSamples->a_list[0+i*lwe->n], srcSamples->z_list[0+i], &srcSamples->a_list[0+j*lwe->n], srcSamples->z_list[j]);
+                subtractSamples(lwe, tmp_a, &tmp_z, &srcSamples->a_list[0+i*lwe->n], srcSamples->z_list[0+i], &srcSamples->a_list[0+j*lwe->n], srcSamples->z_list[0+j]);
                 
+                // error - DEBUG
+                tmp_e = (srcSamples->z_list[0+i] - srcSamples->z_list[j] + lwe->q) %lwe->q;
+
                 if (!checkzero((char*)tmp_a, sizeof(u16)*lwe->n) && unnaturalSelection(lwe, tmp_a, srcBkwStepPar))
                 {
 	                // add it to the new list
@@ -233,6 +251,7 @@ int transition_bkw_step_final(lweInstance *lwe, bkwStepParameters *srcBkwStepPar
 	                {
                         memcpy(&dstSamples->a_list[sample_index*lwe->n], tmp_a, lwe->n*sizeof(u16));
                         dstSamples->z_list[sample_index] = tmp_z;
+                        dstSamples->e_list[sample_index] = tmp_e;
 	                    dstSamples->n_samples++;
 	                }
 	                // else

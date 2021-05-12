@@ -21,4 +21,8 @@
 
 int error_rate(int zero_positions, unsortedSamplesList *Samples, lweInstance *lwe);
 
+int verify_samples(int zero_positions, sortedSamplesList *Samples, lweInstance *lwe);
+
+int verify_unsorted_samples(int zero_positions, unsortedSamplesList *Samples, lweInstance *lwe);
+
 #endif /* ERROR_RATE_H */

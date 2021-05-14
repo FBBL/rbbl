@@ -72,8 +72,7 @@ void lwe_init(lweInstance *lwe, u16 n, u16 q, double alpha){
     for (i = 0; i < n; i++)
     {
         lwe->s[i] = (chi(lwe->sigma, NULL) + q) % q;
-        printf("%d ", lwe->s[i]);
-    }printf("\n");
+    }
 }
 
 /* Create and allocate n_samples in list */
@@ -86,10 +85,18 @@ void create_lwe_samples(unsortedSamplesList *Samples, lweInstance *lwe, u64 n_sa
     Samples->max_samples = n_samples;
     Samples->a_list = calloc(n_samples*n, sizeof(u16));
     Samples->z_list = calloc(n_samples, sizeof(u16));
+
+    ASSERT(Samples->a_list != NULL, "Failed allocation");
+    ASSERT(Samples->z_list != NULL, "Failed allocation");
+
+#ifdef DEBUG
     Samples->e_list = calloc(n_samples, sizeof(u16));
+    ASSERT(Samples->e_list != NULL, "Failed allocation");
+#else
+    int error;
+#endif
 
     int seed = get_seed(), in;
-    u16 error;
     srand((unsigned) seed);
 
     for (int i = 0; i < n_samples; i++)
@@ -103,11 +110,16 @@ void create_lwe_samples(unsortedSamplesList *Samples, lweInstance *lwe, u64 n_sa
             Samples->z_list[i] = (Samples->z_list[i] + Samples->a_list[in+j]*lwe->s[j]) % q;
         }
 
-        // sample error
+// sample error
+#ifdef DEBUG
         Samples->e_list[i] = (chi(lwe->sigma, &lwe->ctx) + q) % q;
- 
         // z = a*s + e mod q
         Samples->z_list[i] = (Samples->z_list[i] + Samples->e_list[i]) % q;
+#else
+        error = (chi(lwe->sigma, &lwe->ctx) + q) % q;
+        // z = a*s + e mod q
+        Samples->z_list[i] = (Samples->z_list[i] + error) % q;
+ #endif
     }
 
 }
@@ -119,11 +131,13 @@ void allocate_unsorted_samples_list(unsortedSamplesList *Samples, lweInstance *l
     Samples->n_samples = 0;
     Samples->a_list = malloc(n_samples*lwe->n * sizeof(u16));
     Samples->z_list = malloc(n_samples * sizeof(u16));
-    Samples->e_list = malloc(n_samples * sizeof(u16));
-
     ASSERT(Samples->a_list != NULL, "Failed allocation");
     ASSERT(Samples->z_list != NULL, "Failed allocation");
+
+#ifdef DEBUG
+    Samples->e_list = malloc(n_samples * sizeof(u16));
     ASSERT(Samples->e_list != NULL, "Failed allocation");
+#endif
 
     Samples->max_samples = n_samples;
 }
@@ -134,8 +148,9 @@ void free_samples(unsortedSamplesList *Samples){
 
     free(Samples->a_list);
     free(Samples->z_list);
+#ifdef DEBUG
     free(Samples->e_list);
-
+#endif
     Samples->n_samples = 0;
 }
 
@@ -144,7 +159,9 @@ void free_sorted_samples(sortedSamplesList *Samples, u64 max_categories){
 
     free(Samples->a_list);
     free(Samples->z_list);
+#ifdef DEBUG
     free(Samples->e_list);
+#endif
     free(Samples->n_in_categories);
 
     Samples->n_samples = 0;
@@ -213,14 +230,18 @@ void allocate_sorted_samples_list(sortedSamplesList *Samples, lweInstance *lwe, 
 
     // careful with the following setting... could be modified
     Samples->n_categories = num_categories(lwe, bkwStepPar);
-    Samples->max_samples = MIN(n_samples + ceil(SAMPLES_INCREASE_FACTOR*n_samples), max_categories*6); // allow some more samples at each step
+    Samples->max_samples = MIN(n_samples + ceil(SAMPLES_INCREASE_FACTOR*n_samples), max_categories*SAMPLES_PER_CATEGORY); // allow some more samples at each step
 
-    Samples->a_list = malloc(lwe->n*max_categories*6 * sizeof(u16));
-    Samples->z_list = malloc(max_categories*6 * sizeof(u16));
-    Samples->e_list = malloc(max_categories*6 * sizeof(u16));
+    Samples->a_list = malloc(lwe->n*max_categories*SAMPLES_PER_CATEGORY * sizeof(u16));
+    Samples->z_list = malloc(max_categories*SAMPLES_PER_CATEGORY * sizeof(u16));
+
     ASSERT(Samples->a_list != NULL, "Failed allocation");
     ASSERT(Samples->z_list != NULL, "Failed allocation");
+
+#ifdef DEBUG
+    Samples->e_list = malloc(max_categories*SAMPLES_PER_CATEGORY * sizeof(u16));
     ASSERT(Samples->e_list != NULL, "Failed allocation");
+#endif
 
     Samples->n_in_categories = calloc(max_categories, sizeof(u8));
     Samples->n_samples = 0;

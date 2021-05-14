@@ -22,7 +22,7 @@
 #include <math.h>
 #include <pthread.h>
 
-// #define PRINT_INTERMEDIATE
+#define PRINT_INTERMEDIATE
 
 /*
  * integer to binary sequence

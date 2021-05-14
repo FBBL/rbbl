@@ -101,7 +101,7 @@ int verify_samples(int zero_positions, sortedSamplesList *Samples, lweInstance *
             sum = (sum + Samples->e_list[SAMPLES_PER_CATEGORY*j +i]) % q;
             if (sum != Samples->z_list[SAMPLES_PER_CATEGORY*j +i])
             {
-                printf("ERROR in sample verification\n");
+                printf("ERROR in general sorted sample verification\n");
                 exit(0);
             }
         }
@@ -128,7 +128,7 @@ int verify_unsorted_samples(int zero_positions, unsortedSamplesList *Samples, lw
         sum = (sum + Samples->e_list[i]) % q;
         if (sum != Samples->z_list[i])
         {
-            printf("ERROR in unsorted sample verification\n");
+            printf("ERROR in general unsorted sample verification\n");
             exit(0);
         }
     }

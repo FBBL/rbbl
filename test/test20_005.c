@@ -14,6 +14,7 @@
  *  along with Nome-Programma.  If not, see <http://www.gnu.org/licenses/>
  */
 
+#define _POSIX_C_SOURCE 199309L
 
 #include "config.h"
 #include "lwe_instance.h"
@@ -105,16 +106,12 @@ int main()
     sortedSamplesList *srcSamples, *dstSamples, *tmpSamples;
 
     allocate_sorted_samples_list(&sortedSamples1, &lwe, &bkwStepPar[0], Samples.n_samples, max_categories);
-
-    verify_unsorted_samples(zero_positions, &Samples, &lwe);
-
+    set_sorted_samples_list(&sortedSamples1, &lwe, &bkwStepPar[0], Samples.n_samples, max_categories);
 
     /* multiply times 2 mod q and sort (unsorted) samples */
     time_stamp("Multiply samples times 2 modulo q");
     int ret = transition_times2_modq(&lwe, &bkwStepPar[0], &sortedSamples1, &Samples);
     time_stamp("Number of samples: %d", sortedSamples1.n_samples);
-
-    verify_samples(zero_positions, &sortedSamples1, &lwe);
 
     // free original samples - save up memory
     free_samples(&Samples);
@@ -133,25 +130,8 @@ int main()
 
     	time_stamp("Perform smooth LMS reduction step %d/%d", i+1, numReductionSteps);
         set_sorted_samples_list(dstSamples, &lwe, &bkwStepPar[i+1], srcSamples->n_samples, max_categories);
+
         ret = transition_bkw_step_smooth_lms(&lwe, &bkwStepPar[i+1], srcSamples, dstSamples);
-
-        verify_samples(zero_positions, dstSamples, &lwe);
-
-    // for (int j = 0; j < 1000; j++)
-    // {
-    //     for (int i = 0; i < sortedSamples2.n_in_categories[j]; ++i)
-    //     {
-    //         for (int k = 0; k < n; ++k)
-    //         {
-    //             printf("%d ", sortedSamples2.a_list[SAMPLES_PER_CATEGORY*n*j + i*n + k]);
-    //         }
-    //         printf(" - %d \n", sortedSamples2.z_list[SAMPLES_PER_CATEGORY*j +i]);
-    //     }
-        
-    // }
-
-    // exit(0);
-
 
         if(i != numReductionSteps-2){
             // clean past list

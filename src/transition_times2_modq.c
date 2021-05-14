@@ -49,7 +49,8 @@ int sample_times2_modq(u16 *dst_a, u16 *dst_z, u16 *src_a, u16 src_z, lweInstanc
     return index;
 }
 
-void verify_samplex2(u16 *a, u16 z, u16 e, lweInstance *lwe){
+#ifdef DEBUG
+int verify_samplex2(u16 *a, u16 z, u16 e, lweInstance *lwe){
 
     int sum = 0;
     for (int k = 0; k < lwe->n; ++k)
@@ -60,9 +61,11 @@ void verify_samplex2(u16 *a, u16 z, u16 e, lweInstance *lwe){
     if (sum != z)
     {
         printf("TADAAA in sample verification x2\n");
-        exit(0);
+        return 1;
     }
+    return 0;
 }
+#endif
 
 void *single_thread_work(void *params){
 
@@ -74,7 +77,9 @@ void *single_thread_work(void *params){
 
     u16 tmp_a[p->lwe->n];
     u16 tmp_z = 0;
+#ifdef DEBUG
     u16 tmp_e;
+#endif
 
     int block_a = p->lwe->n*SAMPLES_PER_CATEGORY;
     int block_z = SAMPLES_PER_CATEGORY;
@@ -83,16 +88,23 @@ void *single_thread_work(void *params){
     {
         category = sample_times2_modq(tmp_a, &tmp_z, &p->unsortedSamples->a_list[count*p->lwe->n], p->unsortedSamples->z_list[count], p->lwe, p->bkwStepPar);
 
-        // error - DEBUG
+#ifdef DEBUG
         tmp_e = (p->unsortedSamples->e_list[count] << 1) % p->lwe->q;
-
-        verify_samplex2(tmp_a, tmp_z, tmp_e, p->lwe);
-
+        if(verify_samplex2(tmp_a, tmp_z, tmp_e, p->lwe)){
+                    for (int k = 0; k < p->lwe->n; k++)
+                    {
+                        printf("%d x2 = %d\n", &p->unsortedSamples->a_list[count*p->lwe->n], tmp_a[k]);               
+                    }
+                    printf("%d x2 = %d\n", p->unsortedSamples->z_list[count], tmp_z);
+                    printf("%d x2 = %d\n", p->unsortedSamples->e_list[count], tmp_e);
+                    exit(0);
+        }
+#endif
         n_samples_in_category = p->sortedSamples->n_in_categories[category];
 
         if (n_samples_in_category < SAMPLES_PER_CATEGORY && p->sortedSamples->n_samples < p->sortedSamples->max_samples)
         {
-            mutex_index = category / n_storage_mutex;
+            mutex_index = category % n_storage_mutex;
             pthread_mutex_lock(&storage_mutex[mutex_index]);
             if (!checkzero((char*)tmp_a, sizeof(u16)*(p->lwe->n)))
             {
@@ -106,9 +118,9 @@ void *single_thread_work(void *params){
                 }
                 memcpy(&p->sortedSamples->a_list[block_a*category+n_samples_in_category*p->lwe->n], tmp_a, p->lwe->n*sizeof(u16));
                 p->sortedSamples->z_list[block_z*category+n_samples_in_category] = tmp_z;
-                // printf("%d %d\n", p->sortedSamples->z_list[block_z*category+n_samples_in_category], tmp_z);
-                // error - DEBUG
+#ifdef DEBUG
                 p->sortedSamples->e_list[block_z*category+n_samples_in_category] = tmp_e;
+#endif
                 p->sortedSamples->n_in_categories[category]++;
                 p->sortedSamples->n_samples++;
             }

@@ -14,25 +14,15 @@
  *  along with Nome-Programma.  If not, see <http://www.gnu.org/licenses/>
  */
 
-#ifndef CONFIG_H
-#define CONFIG_H
+#ifndef LOOKUP_TABLES_H
+#define LOOKUP_TABLES_H
 
-#include"stdint.h"
+#include "config.h"
 
-/* config variables */
+int createSumAndDiffTables(int q);
+void freeSumAndDiffTables(void);
 
-// mode
-// #define DEBUG
-
-#define u8 uint8_t
-#define u16 uint16_t
-#define u32 uint32_t
-#define u64 uint64_t
-
-#define SAMPLES_PER_CATEGORY 6
-#define SAMPLES_INCREASE_FACTOR 0.05
-
-#define NUM_THREADS 10
-#define MAX_NUM_STORAGE_MUTEXES 100
+u16 sumTable(u16, u16);
+u16 diffTable(u16, u16);
 
 #endif

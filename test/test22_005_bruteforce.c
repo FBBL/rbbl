@@ -14,6 +14,7 @@
  *  along with Nome-Programma.  If not, see <http://www.gnu.org/licenses/>
  */
 
+#define _POSIX_C_SOURCE 199309L
 
 #include "config.h"
 #include "lwe_instance.h"
@@ -28,7 +29,7 @@
 #include <stdlib.h>
 
 #define NUM_REDUCTION_STEPS 8
-#define BRUTE_FORCE_POSITIONS 2
+#define BRUTE_FORCE_POSITIONS 1 
 #define ZERO_POSITIONS 11
 
 int main()
@@ -37,14 +38,16 @@ int main()
     u64 samples_for_guessing = 800000;
 
     lweInstance lwe;
-    int n = 22;
+    int n = 21;
     int q = 401;
     double alpha = 0.005;
 
     time_stamp("LWE parameters: n: %d, q: %d, sigma: %lf*q. Initial samples: %lu", n, q, alpha, n_samples);
 
-    time_stamp("Precomputation");
-    precompute_cdf_table(alpha*q);
+    // initialize random
+    time_t start = time(NULL);
+    srand(time(NULL));
+    randomUtilRandomize();
 
     time_stamp("Create LWE instance");
     lwe_init(&lwe, n, q, alpha);
@@ -89,8 +92,8 @@ int main()
     // exit(0);
 
     int bf_positions = BRUTE_FORCE_POSITIONS;
-    int fwht_positions = lwe.n - ZERO_POSITIONS - bf_positions;
     int zero_positions = ZERO_POSITIONS;
+    int fwht_positions = lwe.n - zero_positions - bf_positions;
 
     u8 binary_solution[fwht_positions];
     short bf_solution[bf_positions];
@@ -103,11 +106,12 @@ int main()
     sortedSamplesList *srcSamples, *dstSamples, *tmpSamples;
 
     allocate_sorted_samples_list(&sortedSamples1, &lwe, &bkwStepPar[0], Samples.n_samples, max_categories);
+    set_sorted_samples_list(&sortedSamples1, &lwe, &bkwStepPar[0], Samples.n_samples, max_categories);
 
     /* multiply times 2 mod q and sort (unsorted) samples */
     time_stamp("Multiply samples times 2 modulo q");
     int ret = transition_times2_modq(&lwe, &bkwStepPar[0], &sortedSamples1, &Samples);
-    time_stamp("Number of samples: %d - %d samples per category", sortedSamples1.n_samples, sortedSamples1.n_samples_per_category);
+    time_stamp("Number of samples: %d", sortedSamples1.n_samples);
 
     // free original samples - save up memory
     free_samples(&Samples);
@@ -117,12 +121,16 @@ int main()
 
     allocate_sorted_samples_list(dstSamples, &lwe, &bkwStepPar[1], srcSamples->n_samples, max_categories);
 
+    struct timespec begin, end;
+    clock_gettime(CLOCK_REALTIME, &begin);
+
     // perform smooth LMS steps
     int numReductionSteps = NUM_REDUCTION_STEPS;
     for (int i=0; i<numReductionSteps-1; i++){
 
-    	time_stamp("Perform smooth LMS reduction step %d/%d", i+1, numReductionSteps);
-        set_sorted_samples_list(dstSamples, lwe, &bkwStepPar[i+1], srcSamples->n_samples, max_categories);
+        time_stamp("Perform smooth LMS reduction step %d/%d", i+1, numReductionSteps);
+        set_sorted_samples_list(dstSamples, &lwe, &bkwStepPar[i+1], srcSamples->n_samples, max_categories);
+
         ret = transition_bkw_step_smooth_lms(&lwe, &bkwStepPar[i+1], srcSamples, dstSamples);
 
         if(i != numReductionSteps-2){
@@ -136,14 +144,19 @@ int main()
             srcSamples = dstSamples;
         }
 
-        time_stamp("Number of samples: %d - %d samples per category", srcSamples->n_samples, srcSamples->n_samples_per_category);
+        time_stamp("Number of samples: %d", srcSamples->n_samples);
     }
+
+    clock_gettime(CLOCK_REALTIME, &end);
+    long seconds = end.tv_sec - begin.tv_sec;
+    long nanoseconds = end.tv_nsec - begin.tv_nsec;
+    double elapsed = seconds + nanoseconds*1e-9;
 
     /* perform last reduction step */
     int i = numReductionSteps-1;
     time_stamp("Perform last smooth LMS reduction step %d/%d", numReductionSteps, numReductionSteps);
 
-    allocate_samples_list(&Samples, &lwe, samples_for_guessing); // actually one could have more or less samples
+    allocate_unsorted_samples_list(&Samples, &lwe, samples_for_guessing); // actually one could have more or less samples
     ret = transition_bkw_step_final(&lwe, &bkwStepPar[i], srcSamples, &Samples, samples_for_guessing);
 
     time_stamp("Number of samples: %d", Samples.n_samples);
@@ -162,13 +175,9 @@ int main()
         else
             original_binary_secret[i] = (lwe.s[i]+1) % 2;
     }
-    // printf(")\n");
-
-    error_rate(zero_positions, &Samples, &lwe);
 
     /* Solving phase - using Fast Walsh Hadamard Tranform */
     time_stamp("Apply Fast Walsh Hadamard Tranform");
-    // ret = solve_fwht_search(binary_solution, zero_positions, fwht_positions, &Samples, &lwe);
     ret = solve_fwht_search_bruteforce(binary_solution, bf_solution, zero_positions, bf_positions, fwht_positions, &Samples, &lwe);
     if(ret)
     {
@@ -192,7 +201,8 @@ int main()
         printf("%d ",lwe.s[i]);
     printf("\n");
 
-    time_stamp("Terminate program.");
+    printf("Time measured: %.3f seconds.\n", elapsed);
 
     return 0;
 }
+

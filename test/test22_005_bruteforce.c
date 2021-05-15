@@ -147,11 +147,6 @@ int main()
         time_stamp("Number of samples: %d", srcSamples->n_samples);
     }
 
-    clock_gettime(CLOCK_REALTIME, &end);
-    long seconds = end.tv_sec - begin.tv_sec;
-    long nanoseconds = end.tv_nsec - begin.tv_nsec;
-    double elapsed = seconds + nanoseconds*1e-9;
-
     /* perform last reduction step */
     int i = numReductionSteps-1;
     time_stamp("Perform last smooth LMS reduction step %d/%d", numReductionSteps, numReductionSteps);
@@ -184,7 +179,14 @@ int main()
         printf("error %d in solve_fwht_search_hybrid\n", ret);
         exit(-1);
     }
+
     free_samples(&Samples);
+
+    clock_gettime(CLOCK_REALTIME, &end);
+    long seconds = end.tv_sec - begin.tv_sec;
+    long nanoseconds = end.tv_nsec - begin.tv_nsec;
+    double elapsed = seconds + nanoseconds*1e-9;
+
 
 
     printf("\nFound Solution   \n");

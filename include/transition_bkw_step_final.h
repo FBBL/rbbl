@@ -20,8 +20,7 @@
 #include "lwe_instance.h"
 #include "position_values_2_category_index.h"
 #include "utils.h"
-#include "lookup_tables.h"
 
-int transition_bkw_step_final(lweInstance *lwe, bkwStepParameters *srcBkwStepPar, sortedSamplesList *srcSamples, samplesList *dstSamples, int tot_final_samples);
+int transition_bkw_step_final(lweInstance *lwe, bkwStepParameters *srcBkwStepPar, sortedSamplesList *srcSamples, unsortedSamplesList *dstSamples, u64 maxSamples);
 
 #endif /* TRANSITION_BKW_STEP_FINAL_H */

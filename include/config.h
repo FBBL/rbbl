@@ -21,9 +21,18 @@
 
 /* config variables */
 
+// mode
+// #define DEBUG
+
 #define u8 uint8_t
 #define u16 uint16_t
 #define u32 uint32_t
 #define u64 uint64_t
+
+#define SAMPLES_PER_CATEGORY 6
+#define SAMPLES_INCREASE_FACTOR 0.01
+
+#define NUM_THREADS 8
+#define MAX_NUM_STORAGE_MUTEXES 1000
 
 #endif

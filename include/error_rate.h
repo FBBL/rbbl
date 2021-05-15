@@ -14,13 +14,15 @@
  *  along with Nome-Programma.  If not, see <http://www.gnu.org/licenses/>
  */
 
-#ifndef TRANSITION_BKW_STEP_SMOOTH_LMS_H
-#define TRANSITION_BKW_STEP_SMOOTH_LMS_H
+#ifndef ERROR_RATE_H
+#define ERROR_RATE_H
 
 #include "lwe_instance.h"
-#include "position_values_2_category_index.h"
-#include "utils.h"
 
-int transition_bkw_step_smooth_lms(lweInstance *lwe, bkwStepParameters *dstBkwStepPar, sortedSamplesList *srcSamples, sortedSamplesList *dstSamples);
+int error_rate(int zero_positions, unsortedSamplesList *Samples, lweInstance *lwe);
 
-#endif /* TRANSITION_BKW_STEP_SMOOTH_LMS_H */
+int verify_samples(int zero_positions, sortedSamplesList *Samples, lweInstance *lwe);
+
+int verify_unsorted_samples(int zero_positions, unsortedSamplesList *Samples, lweInstance *lwe);
+
+#endif /* ERROR_RATE_H */

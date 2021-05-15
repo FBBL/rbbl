@@ -16,48 +16,40 @@
 
 #include "lwe_instance.h"
 #include "utils.h"
+#include "random_utils.h"
 
 #include <stdio.h>
 #include <math.h>
 #include <time.h>
+#include <string.h>
 
-#define LEN_MAX_CDF 200
-#define SAMPLES_PER_CATEGORY 6
+#define PI 3.14159265359
 
-static u32 CDF_TABLE[LEN_MAX_CDF];
-
-static int CDF_TABLE_LEN = 0;
-
-/* Gaussian Distribution PDF */
-const double pi = 3.141592653589793;
-const double e = 2.718281828459045;
-double normal_PDF(int x, double mean, double sigma)
+static int roundInt(double d)
 {
-    return (1/(sigma*sqrt(2*pi)))*exp(-0.5*(((x-mean)/sigma)*((x-mean)/sigma)));
+    return d > 0.0 ? d + 0.5 : d - 0.5;
 }
 
-void precompute_cdf_table(double sigma)
+/* adapted malb */
+int chi(double sigma, rand_ctx *rnd)
 {
-
-    CDF_TABLE_LEN = 4*sigma+2;
-    if (CDF_TABLE_LEN>LEN_MAX_CDF)
-    {
-        printf("ERROR: CDF_TABLE_LEN>LEN_MAX_CDF\n");
-        exit(0);
-    }
-
-    int len_x = 16;
-    double sum;
-
-    CDF_TABLE[0] = (1<<(len_x-1))*normal_PDF(0, 0, sigma)-1;
-    for (int z = 1; z < CDF_TABLE_LEN; z++)
-    {
-        sum = 0;
-        for (int i = 1; i <= z; i++)
-            sum += normal_PDF(i, 0, sigma);
-        CDF_TABLE[z] = CDF_TABLE[0]+(1<<len_x)*sum;
-    }
-
+#if 1
+    const double aa = randomUtilDouble(rnd);
+    const double a = aa == 0 ? 0 : sqrt(-2 * log(aa));
+    const double b = 2 * PI * randomUtilDouble(rnd);
+    const double x = sigma * a * cos(b);
+    //const double y = sigma * a * sin(b);
+    int ret = roundInt(x);
+    return ret;
+#else
+    const double aa = rand() / (double)RAND_MAX;
+    const double a = aa == 0 ? 0 : sqrt(-2 * log(aa));
+    const double b = 2 * PI * rand() / (double)RAND_MAX;
+    const double x = sigma * a * cos(b);
+    //const double y = sigma * a * sin(b);
+    int ret = roundInt(x);
+    return ret;
+#endif
 }
 
 /* Initialize LWE struct, store secret (distributed as the noise) */
@@ -77,110 +69,102 @@ void lwe_init(lweInstance *lwe, u16 n, u16 q, double alpha){
 
     unsigned int i, j;
 
-    if(!CDF_TABLE_LEN){
-        printf("ERROR: one must first precompute CDF table\n");
-        exit(0);
-    }
-
     for (i = 0; i < n; i++)
     {
-        u16 sample = 0;
-        u16 prnd = lwe->s[i] >> 1;    // Drop the least significant bit
-        u16 sign = lwe->s[i] & 0x1;    // Pick the least significant bit
-
-        // No need to compare with the last value.
-        for (j = 0; j < (unsigned int)(CDF_TABLE_LEN - 1); j++)
-        {
-            // Constant time comparison: 1 if CDF_TABLE[j] < s, 0 otherwise. Uses the fact that CDF_TABLE[j] and s fit in 15 bits.
-            sample += (u16)(CDF_TABLE[j] - prnd) >> 15;
-        }
-        // Assuming that sign is either 0 or 1, flips sample iff sign = 1. WARNING: NOT CONSTANT TIME
-        lwe->s[i] = sign ? sample : (q-sample) % q;
+        lwe->s[i] = (chi(lwe->sigma, NULL) + q) % q;
     }
-
 }
 
 /* Create and allocate n_samples in list */
-void create_lwe_samples(samplesList *Samples, lweInstance *lwe, int n_samples){
-
-    Samples->n_samples = n_samples;
-    Samples->list = calloc(n_samples, sizeof(sample));
+void create_lwe_samples(unsortedSamplesList *Samples, lweInstance *lwe, u64 n_samples){
 
     u16 n = lwe->n;
     u16 q = lwe->q;
 
-    int seed = get_seed();
+    Samples->n_samples = n_samples;
+    Samples->max_samples = n_samples;
+    Samples->a_list = calloc(n_samples*n, sizeof(u16));
+    Samples->z_list = calloc(n_samples, sizeof(u16));
+
+    ASSERT(Samples->a_list != NULL, "Failed allocation");
+    ASSERT(Samples->z_list != NULL, "Failed allocation");
+
+#ifdef DEBUG
+    Samples->e_list = calloc(n_samples, sizeof(u16));
+    ASSERT(Samples->e_list != NULL, "Failed allocation");
+#else
+    int error;
+#endif
+
+    int seed = get_seed(), in;
     srand((unsigned) seed);
 
     for (int i = 0; i < n_samples; i++)
     {
-        Samples->list[i].a = calloc(lwe->n, sizeof(u16));
-        Samples->list[i].z = 0;
+        in = i*n;
+        Samples->z_list[i] = 0;
 
         for (int j = 0; j < n; j++)
         {
-            Samples->list[i].a[j] = (u16)randomUtilInt(&lwe->ctx, q);
-            Samples->list[i].z = (Samples->list[i].z + Samples->list[i].a[j]*lwe->s[j]) % q;
+            Samples->a_list[in+j] = (u16)randomUtilInt(&lwe->ctx, q);
+            Samples->z_list[i] = (Samples->z_list[i] + Samples->a_list[in+j]*lwe->s[j]) % q;
         }
 
-        // sample error
-        Samples->list[i].error = (u16)(rand());
-        u16 sample = 0;
-        u16 prnd = Samples->list[i].error >> 1;    // Drop the least significant bit
-        u16 sign = Samples->list[i].error & 0x1;    // Pick the least significant bit
-
-        // No need to compare with the last value.
-        for (int j = 0; j < (unsigned int)(CDF_TABLE_LEN - 1); j++)
-        {
-            // Constant time comparison: 1 if CDF_TABLE[j] < s, 0 otherwise. Uses the fact that CDF_TABLE[j] and s fit in 15 bits.
-            sample += (u16)(CDF_TABLE[j] - prnd) >> 15;
-        }
-        // Assuming that sign is either 0 or 1, flips sample iff sign = 1. WARNING: NOT CONSTANT TIME
-        Samples->list[i].error = sign ? sample : (q-sample) % q;
-
+// sample error
+#ifdef DEBUG
+        Samples->e_list[i] = (chi(lwe->sigma, &lwe->ctx) + q) % q;
         // z = a*s + e mod q
-        Samples->list[i].z = (Samples->list[i].z + Samples->list[i].error) % q;
+        Samples->z_list[i] = (Samples->z_list[i] + Samples->e_list[i]) % q;
+#else
+        error = (chi(lwe->sigma, &lwe->ctx) + q) % q;
+        // z = a*s + e mod q
+        Samples->z_list[i] = (Samples->z_list[i] + error) % q;
+ #endif
     }
 
 }
 
 
 /* allocate memory for sorted samples. n_samples is the nuber of total sampels in input before sorting/bkwstep */
-void allocate_samples_list(samplesList *Samples, lweInstance *lwe, int n_samples){
+void allocate_unsorted_samples_list(unsortedSamplesList *Samples, lweInstance *lwe, u64 n_samples){
 
-    Samples->n_samples = n_samples;
-    Samples->list = calloc(n_samples, sizeof(sample));
+    Samples->n_samples = 0;
+    Samples->a_list = malloc(n_samples*lwe->n * sizeof(u16));
+    Samples->z_list = malloc(n_samples * sizeof(u16));
+    ASSERT(Samples->a_list != NULL, "Failed allocation");
+    ASSERT(Samples->z_list != NULL, "Failed allocation");
 
-    u16 n = lwe->n;
-    u16 q = lwe->q;
+#ifdef DEBUG
+    Samples->e_list = malloc(n_samples * sizeof(u16));
+    ASSERT(Samples->e_list != NULL, "Failed allocation");
+#endif
+
+    Samples->max_samples = n_samples;
 }
 
 
 /* free samples */
-void free_samples(samplesList *Samples){
+void free_samples(unsortedSamplesList *Samples){
 
-    for (int i = 0; i < Samples->n_samples; i++)
-        free(Samples->list[i].a);
-
-    free(Samples->list);
-
+    free(Samples->a_list);
+    free(Samples->z_list);
+#ifdef DEBUG
+    free(Samples->e_list);
+#endif
     Samples->n_samples = 0;
 }
 
 /* free sortedSamplesList */
 void free_sorted_samples(sortedSamplesList *Samples, u64 max_categories){
 
-    for (int i = 0; i < max_categories; i++)
-    {
-        for (int j = 0; j < SAMPLES_PER_CATEGORY; j++)
-            free(Samples->list_categories[i].list[j].a);
-        free(Samples->list_categories[i].list);
-        Samples->list_categories[i].n_samples = 0;
-    }
-    free(Samples->list_categories);
+    free(Samples->a_list);
+    free(Samples->z_list);
+#ifdef DEBUG
+    free(Samples->e_list);
+#endif
+    free(Samples->n_in_categories);
 
     Samples->n_samples = 0;
-    Samples->n_samples_per_category = 0;
     Samples->max_samples = 0;
     Samples->n_categories = 0;
 
@@ -188,8 +172,7 @@ void free_sorted_samples(sortedSamplesList *Samples, u64 max_categories){
 
 void clean_sorted_samples(sortedSamplesList *Samples){
 
-    for (int i = 0; i < Samples->n_categories; i++)
-        Samples->list_categories[i].n_samples = 0;
+    memset(Samples->n_in_categories, 0, sizeof(u8)*Samples->n_categories);
 
     Samples->n_samples = 0;
     Samples->max_samples = 0;
@@ -247,29 +230,31 @@ void allocate_sorted_samples_list(sortedSamplesList *Samples, lweInstance *lwe, 
 
     // careful with the following setting... could be modified
     Samples->n_categories = num_categories(lwe, bkwStepPar);
-    Samples->n_samples_per_category = SAMPLES_PER_CATEGORY;//5*ceil((double)n_samples/Samples->n_categories)+1; // no need to store too many samples for each category
-    ASSERT(Samples->n_samples_per_category >= 2, "Not enough samples");
+    Samples->max_samples = MIN(n_samples + ceil(SAMPLES_INCREASE_FACTOR*n_samples), max_categories*SAMPLES_PER_CATEGORY); // allow some more samples at each step
 
-    Samples->max_samples = n_samples + ceil(0.05*n_samples); // allow some more samples at each step
+    Samples->a_list = malloc(lwe->n*max_categories*SAMPLES_PER_CATEGORY * sizeof(u16));
+    Samples->z_list = malloc(max_categories*SAMPLES_PER_CATEGORY * sizeof(u16));
 
-    Samples->list_categories = calloc(max_categories, sizeof(category));
-    ASSERT(Samples->list_categories != NULL, "Failed allocation");
-    for (int i = 0; i < max_categories; ++i){
-        Samples->list_categories[i].list = calloc(Samples->n_samples_per_category, sizeof(sample));
-        ASSERT(Samples->list_categories[i].list != NULL, "Failed allocation");
-        for (int j = 0; j < Samples->n_samples_per_category; j++)
-            Samples->list_categories[i].list[j].a = malloc(lwe->n*sizeof(u16));
-    }
+    ASSERT(Samples->a_list != NULL, "Failed allocation");
+    ASSERT(Samples->z_list != NULL, "Failed allocation");
+
+#ifdef DEBUG
+    Samples->e_list = malloc(max_categories*SAMPLES_PER_CATEGORY * sizeof(u16));
+    ASSERT(Samples->e_list != NULL, "Failed allocation");
+#endif
+
+    Samples->n_in_categories = calloc(max_categories, sizeof(u8));
     Samples->n_samples = 0;
 }
 
 /* allocate memory for sorted samples. n_samples is the nuber of total sampels in input before sorting/bkwstep */
-void set_sorted_samples_list(sortedSamplesList *Samples, lweInstance *lwe, bkwStepParameters *bkwStepPar, int n_samples){
+void set_sorted_samples_list(sortedSamplesList *Samples, lweInstance *lwe, bkwStepParameters *bkwStepPar, u64 n_samples, u64 max_categories){
 
     // careful with the following setting... could be modified
     Samples->n_categories = num_categories(lwe, bkwStepPar);
-    Samples->n_samples_per_category = SAMPLES_PER_CATEGORY; // no need to store too many samples for each category
-    Samples->max_samples = n_samples + ceil(0.05*n_samples); // allow some more samples at each step
+    Samples->max_samples = n_samples + ceil(SAMPLES_INCREASE_FACTOR*n_samples); // allow some more samples at each step
+
+    memset(Samples->n_in_categories, 0, sizeof(u8)*max_categories);
     Samples->n_samples = 0;
 }
 

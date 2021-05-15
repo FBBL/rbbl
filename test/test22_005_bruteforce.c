@@ -29,7 +29,7 @@
 #include <stdlib.h>
 
 #define NUM_REDUCTION_STEPS 8
-#define BRUTE_FORCE_POSITIONS 0
+#define BRUTE_FORCE_POSITIONS 2
 #define ZERO_POSITIONS 11
 
 int main()
@@ -38,7 +38,7 @@ int main()
     u64 samples_for_guessing = 800000;
 
     lweInstance lwe;
-    int n = 20;
+    int n = 22;
     int q = 401;
     double alpha = 0.005;
 
@@ -91,12 +91,12 @@ int main()
     }
     // exit(0);
 
-    int bruteForcePositions = BRUTE_FORCE_POSITIONS;
-    int fwht_positions = lwe.n - ZERO_POSITIONS;
+    int bf_positions = BRUTE_FORCE_POSITIONS;
     int zero_positions = ZERO_POSITIONS;
+    int fwht_positions = lwe.n - zero_positions - bf_positions;
 
     u8 binary_solution[fwht_positions];
-    short bf_solution[bruteForcePositions];
+    short bf_solution[bf_positions];
 
     time_stamp("Start reduction phase");
 
@@ -128,7 +128,7 @@ int main()
     int numReductionSteps = NUM_REDUCTION_STEPS;
     for (int i=0; i<numReductionSteps-1; i++){
 
-    	time_stamp("Perform smooth LMS reduction step %d/%d", i+1, numReductionSteps);
+        time_stamp("Perform smooth LMS reduction step %d/%d", i+1, numReductionSteps);
         set_sorted_samples_list(dstSamples, &lwe, &bkwStepPar[i+1], srcSamples->n_samples, max_categories);
 
         ret = transition_bkw_step_smooth_lms(&lwe, &bkwStepPar[i+1], srcSamples, dstSamples);
@@ -175,13 +175,10 @@ int main()
         else
             original_binary_secret[i] = (lwe.s[i]+1) % 2;
     }
-    // printf(")\n");
-
-    error_rate(zero_positions, &Samples, &lwe);
 
     /* Solving phase - using Fast Walsh Hadamard Tranform */
     time_stamp("Apply Fast Walsh Hadamard Tranform");
-    ret = solve_fwht_search(binary_solution, zero_positions, fwht_positions, &Samples, &lwe);
+    ret = solve_fwht_search_bruteforce(binary_solution, bf_solution, zero_positions, bf_positions, fwht_positions, &Samples, &lwe);
     if(ret)
     {
         printf("error %d in solve_fwht_search_hybrid\n", ret);
@@ -189,17 +186,23 @@ int main()
     }
     free_samples(&Samples);
 
+
     printf("\nFound Solution   \n");
     for(int i = 0; i<fwht_positions; i++)
         printf("%d ",binary_solution[i]);
+    for(int i = 0; i<bf_positions; i++)
+        printf("%d ",bf_solution[i]);
     printf("\n");
 
     printf("\nOriginal Solution\n");
     for(int i = zero_positions; i<zero_positions+fwht_positions; i++)
         printf("%d ",original_binary_secret[i]);
-    printf("\n\n");
+    for(int i = zero_positions+fwht_positions; i<lwe.n; i++)
+        printf("%d ",lwe.s[i]);
+    printf("\n");
 
     printf("Time measured: %.3f seconds.\n", elapsed);
 
     return 0;
 }
+

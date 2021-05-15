@@ -23,8 +23,8 @@
 
 #define MAX_BRUTE_FORCE 60
 
-int solve_fwht_search(u8 *binary_solution, int zeroPositions, int fwht_positions, samplesList *reducedSamples, lweInstance *lwe);
+int solve_fwht_search(u8 *binary_solution, int zeroPositions, int fwht_positions, unsortedSamplesList *reducedSamples, lweInstance *lwe);
 
-int solve_fwht_search_bruteforce(u8 *binary_solution, short *bf_solution, int zero_positions, int bf_positions, int fwht_positions, samplesList *reducedSamples, lweInstance *lwe);
+int solve_fwht_search_bruteforce(u8 *binary_solution, short *bf_solution, int zero_positions, int bf_positions, int fwht_positions, unsortedSamplesList *reducedSamples, lweInstance *lwe);
 
 #endif /* SOLVE_FWHT_H */

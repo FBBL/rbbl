@@ -18,35 +18,54 @@
 
 #include <math.h>
 #include <string.h>
+#include <pthread.h>
 
 #define MIN(X, Y)  ((X) < (Y) ? (X) : (Y))
 
-static u64 subtractSamples(lweInstance *lwe, sample *outSample, sample *sample1, sample *sample2)
-{
-    int q = lwe->q;
+/* define mutexes to protect common resources from concurrent access */
+static pthread_mutex_t screen_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t tot_count_mutex = PTHREAD_MUTEX_INITIALIZER;
+static u64 discarded = 0;
 
-    for (int i=0; i < lwe->n; i++)
-        outSample->a[i] = (sample1->a[i] - sample2->a[i] + q) %q;//     diffTable(sample1->a[i], sample2->a[i]);
-    outSample->z = (sample1->z - sample2->z + q) %q;
-    // outSample->error = diffTable(sample1->error, sample2->error);
+typedef struct {
+    lweInstance *lwe;
+    bkwStepParameters *bkwStepPar;
+    sortedSamplesList *srcSamples;
+    unsortedSamplesList* dstSamples;
+    u64 minIndex1;
+    u64 maxIndex1;
+    u64 maxTotSamples;
+} Params;
+
+static u64 subtractSamples(lweInstance *lwe, u16 *dst_a, u16 *dst_z, u16 *src1_a, u16 src1_z, u16 *src2_a, u16 src2_z)
+{
+
+    for (int i=0; i < lwe->n; i++){
+        dst_a[i] = (src1_a[i] - src2_a[i] + lwe->q);
+        dst_a[i] = dst_a[i] >= lwe->q ? dst_a[i] -lwe->q : dst_a[i];
+    }
+    *dst_z = (src1_z - src2_z + lwe->q);
+    *dst_z = *dst_z >= lwe->q ? *dst_z -lwe->q : *dst_z;
 
     return 0;
 }
 
-static int addSamples(lweInstance *lwe, sample *outSample, sample *sample1, sample *sample2)
+static u64 addSamples(lweInstance *lwe, u16 *dst_a, u16 *dst_z, u16 *src1_a, u16 src1_z, u16 *src2_a, u16 src2_z)
 {
-    int q = lwe->q;
 
-    for (int i=0; i < lwe->n; i++)
-        outSample->a[i] = (sample1->a[i] + sample2->a[i]) % q;//sumTable(sample1->a[i], sample2->a[i]);
-    outSample->z = (sample1->z + sample2->z) % q;//sumTable(sample1->z, sample2->z);
-    // outSample->error = sumTable(sample1->error, sample2->error);
+    for (int i=0; i < lwe->n; i++){
+        dst_a[i] = (src1_a[i] + src2_a[i]);
+        dst_a[i] = dst_a[i] >= lwe->q ? dst_a[i] -lwe->q : dst_a[i];
+    }
+    *dst_z = (src1_z + src2_z);
+    *dst_z = *dst_z >= lwe->q ? *dst_z -lwe->q : *dst_z;
 
     return 0;
 }
+
 
 /* Return 1 if passes unnatural selection, 0 otherwise */
-static int unnaturalSelection(lweInstance *lwe, sample *Sample, bkwStepParameters *srcBkwStepPar)
+static int unnaturalSelection(lweInstance *lwe, u16 *dst_a, bkwStepParameters *srcBkwStepPar)
 {
     int n = lwe->n;
     int q = lwe->q;
@@ -55,7 +74,7 @@ static int unnaturalSelection(lweInstance *lwe, sample *Sample, bkwStepParameter
 
     for (int i=0; i < srcBkwStepPar->startIndex + srcBkwStepPar->numPositions; i++)
     {
-        tmp = Sample->a[i] < q/2 ? Sample->a[i] : (int)Sample->a[i] -q;
+        tmp = dst_a[i] < q/2 ? dst_a[i] : (int)dst_a[i] -q;
         if (tmp > srcBkwStepPar->un_selection || tmp < -srcBkwStepPar->un_selection)
             return 0;
     }
@@ -63,144 +82,255 @@ static int unnaturalSelection(lweInstance *lwe, sample *Sample, bkwStepParameter
     return 1;
 }
 
-int transition_bkw_step_final(lweInstance *lwe, bkwStepParameters *srcBkwStepPar, sortedSamplesList *srcSamples, samplesList *dstSamples, int tot_final_samples)
+void *single_thread_final_lf2_work(void *params){
+
+    Params *p = (Params*)params;
+
+    u16 tmp_a[p->lwe->n];
+    u16 tmp_z = 0;
+#ifdef DEBUG
+    u16 tmp_e;
+#endif
+
+    u16 in, jn;
+
+    u64 index1, index2, category, sample_index;
+    int n_samples_in_category, mutex_index;
+
+    int block_a = p->lwe->n*SAMPLES_PER_CATEGORY;
+    int block_z = SAMPLES_PER_CATEGORY;
+
+    /* process samples with LF2 method */
+    for (index1 = p->minIndex1; index1 < p->maxIndex1; index1 = index1+2)
+    {
+        index2 = index1+1;
+
+        if (!(p->dstSamples->n_samples < p->maxTotSamples)){
+            return NULL;
+        }
+
+        // process single category
+        for (int i = 0; i < p->srcSamples->n_in_categories[index1]; i++)
+        {
+            in = i*p->lwe->n;
+            for (int j=i+1; j < p->srcSamples->n_in_categories[index1]; j++)
+            {
+                jn = j*p->lwe->n;
+                subtractSamples(p->lwe, tmp_a, &tmp_z, &p->srcSamples->a_list[index1*block_a +in], p->srcSamples->z_list[index1*block_z +i], &p->srcSamples->a_list[index1*block_a+jn], p->srcSamples->z_list[index1*block_z +j]);
+
+#ifdef DEBUG
+                tmp_e = (p->srcSamples->e_list[index1*block_z +i] - p->srcSamples->e_list[index1*block_z +j] +p->lwe->q) %p->lwe->q;
+#endif
+
+                // add it to the new list
+            	if (!checkzero((char*)tmp_a, sizeof(u16)*p->lwe->n) && unnaturalSelection(p->lwe, tmp_a, p->bkwStepPar))
+                {
+                	pthread_mutex_lock(&tot_count_mutex);
+                    sample_index = p->dstSamples->n_samples;
+                    if (!(p->dstSamples->n_samples < p->maxTotSamples))
+                    {
+                    	pthread_mutex_unlock(&tot_count_mutex);
+	            		return NULL;
+                    }
+                    p->dstSamples->n_samples++;
+                    pthread_mutex_unlock(&tot_count_mutex);                    
+                    memcpy(&p->dstSamples->a_list[sample_index*p->lwe->n], tmp_a, p->lwe->n*sizeof(u16));
+                    p->dstSamples->z_list[sample_index] = tmp_z;
+#ifdef DEBUG
+                    p->dstSamples->e_list[sample_index] = tmp_e;
+#endif
+                }
+                else
+                {
+                  	discarded++;
+                }
+            }
+        }
+
+        // process single category
+        for (int i = 0; i < p->srcSamples->n_in_categories[index2]; i++)
+        {
+            in = i*p->lwe->n;
+            for (int j=i+1; j < p->srcSamples->n_in_categories[index2]; j++)
+            {
+                jn = j*p->lwe->n;
+                subtractSamples(p->lwe, tmp_a, &tmp_z, &p->srcSamples->a_list[index2*block_a +in], p->srcSamples->z_list[index2*block_z +i], &p->srcSamples->a_list[index2*block_a+jn], p->srcSamples->z_list[index2*block_z +j]);
+
+#ifdef DEBUG
+                tmp_e = (p->srcSamples->e_list[index2*block_z +i] - p->srcSamples->e_list[index2*block_z +j] +p->lwe->q) %p->lwe->q;
+#endif
+
+                // add it to the new list
+            	if (!checkzero((char*)tmp_a, sizeof(u16)*p->lwe->n) && unnaturalSelection(p->lwe, tmp_a, p->bkwStepPar))
+                {
+                	pthread_mutex_lock(&tot_count_mutex);
+                    sample_index = p->dstSamples->n_samples;
+                    if (!(p->dstSamples->n_samples < p->maxTotSamples))
+                    {
+                    	pthread_mutex_unlock(&tot_count_mutex);
+	            		return NULL;
+                    }
+                    p->dstSamples->n_samples++;
+                    pthread_mutex_unlock(&tot_count_mutex);
+                    memcpy(&p->dstSamples->a_list[sample_index*p->lwe->n], tmp_a, p->lwe->n*sizeof(u16));
+                    p->dstSamples->z_list[sample_index] = tmp_z;
+#ifdef DEBUG
+                    p->dstSamples->e_list[sample_index] = tmp_e;
+#endif
+                }
+                else
+                {
+                    discarded++;
+                }
+            }
+        }
+
+        // process two adjacent category
+        for (int i=0; i < p->srcSamples->n_in_categories[index1]; i++)
+        {
+            in = i*p->lwe->n;
+            for (int j=0; j < p->srcSamples->n_in_categories[index2]; j++)
+            {
+                jn = j*p->lwe->n;
+                addSamples(p->lwe, tmp_a, &tmp_z, &p->srcSamples->a_list[index1*block_a+in], p->srcSamples->z_list[index1*block_z +i], &p->srcSamples->a_list[index2*block_a +jn], p->srcSamples->z_list[index2*block_z +j]);
+
+#ifdef DEBUG
+                tmp_e = (p->srcSamples->e_list[index1*block_z +i] + p->srcSamples->e_list[index2*block_z +j] +p->lwe->q) %p->lwe->q;
+#endif 
+
+                // add it to the new list
+            	if (!checkzero((char*)tmp_a, sizeof(u16)*p->lwe->n) && unnaturalSelection(p->lwe, tmp_a, p->bkwStepPar))
+                {
+                	pthread_mutex_lock(&tot_count_mutex);
+                    sample_index = p->dstSamples->n_samples;
+                    if (!(p->dstSamples->n_samples < p->maxTotSamples))
+                    {
+                    	pthread_mutex_unlock(&tot_count_mutex);
+	            		return NULL;
+                    }
+                    p->dstSamples->n_samples++;
+                    pthread_mutex_unlock(&tot_count_mutex);
+                    memcpy(&p->dstSamples->a_list[sample_index*p->lwe->n], tmp_a, p->lwe->n*sizeof(u16));
+                    p->dstSamples->z_list[sample_index] = tmp_z;
+#ifdef DEBUG
+                    p->dstSamples->e_list[sample_index] = tmp_e;
+#endif
+                }
+                else
+                {
+                  	discarded++;
+                }
+            }
+        }
+    }
+}
+
+/*
+    VERY IMPORTANT: p->maxTotSamples must be < than the expected number of samples that can be generated!
+*/
+
+int transition_bkw_step_final(lweInstance *lwe, bkwStepParameters *srcBkwStepPar, sortedSamplesList *srcSamples, unsortedSamplesList *dstSamples, u64 maxSamples)
 {
 
-    allocate_samples_list(dstSamples, lwe, tot_final_samples); // actually one could have more or less samples
+    ASSERT(NUM_THREADS >= 1, "Unexpected number of threads!");
 
-    sample tmpSample;
-    tmpSample.a = calloc(lwe->n, sizeof(u16));
+    u16 tmp_a[lwe->n];
+    u16 tmp_z = 0;
+#ifdef DEBUG
+    u16 tmp_e;
+#endif
 
-    u64 index1, index2, discarded = 0;
-
+    u64 index1, index2, minc, sample_index;
     dstSamples->n_samples = 0;
+    discarded = 0;
 
     if (srcSamples->n_categories & 1){
 
         // process single category
-        for (int i = 0; i < srcSamples->list_categories[0].n_samples; i++)
+        for (int i = 0; i < srcSamples->n_in_categories[0]; i++)
         {
-            for (int j=i+1; j < srcSamples->list_categories[0].n_samples; j++)
+            for (int j=i+1; j < srcSamples->n_in_categories[0]; j++)
             {
-                subtractSamples(lwe, &tmpSample, &srcSamples->list_categories[0].list[i], &srcSamples->list_categories[0].list[j]);
+                subtractSamples(lwe, tmp_a, &tmp_z, &srcSamples->a_list[0+i*lwe->n], srcSamples->z_list[0+i], &srcSamples->a_list[0+j*lwe->n], srcSamples->z_list[0+j]);
                 
-                if (!checkzero((char*)tmpSample.a, sizeof(u16)*lwe->n) && unnaturalSelection(lwe, &tmpSample, srcBkwStepPar))
+#ifdef DEBUG
+                tmp_e = (srcSamples->z_list[0+i] - srcSamples->z_list[j] + lwe->q) %lwe->q;
+#endif
+
+                if (!checkzero((char*)tmp_a, sizeof(u16)*lwe->n) && unnaturalSelection(lwe, tmp_a, srcBkwStepPar))
                 {
 	                // add it to the new list
-	                if (dstSamples->n_samples < tot_final_samples)
+	                if (dstSamples->n_samples < maxSamples)
 	                {
-	                    dstSamples->list[dstSamples->n_samples].a = calloc(lwe->n, sizeof(u16));
-	                    memcpy(dstSamples->list[dstSamples->n_samples].a, tmpSample.a, lwe->n*sizeof(u16));
-	                    dstSamples->list[dstSamples->n_samples].z = tmpSample.z;
-	                    // dstSamples->list[dstSamples->n_samples].error = tmpSample.error;
+                        memcpy(&dstSamples->a_list[sample_index*lwe->n], tmp_a, lwe->n*sizeof(u16));
+                        dstSamples->z_list[sample_index] = tmp_z;
+#ifdef DEBUG
+                        dstSamples->e_list[sample_index] = tmp_e;
+#endif
 	                    dstSamples->n_samples++;
 	                }
-	                else
-	                    goto exit;
+	                // else
+	                //     goto exit;
 	            }
 	            else
 	            	discarded++;
             }
         }
 
-        index1 = 1;
-        index2 = 2;
+        minc = 1;
     }
     else{
-        index1 = 0;
-        index2 = 1;
+        minc = 0;
     }
+
+    pthread_t thread[NUM_THREADS];
+    Params param[NUM_THREADS]; /* one set of in-/output paramaters per thread, so no need to lock these */
+
+    u64 cat_per_thread = srcSamples->n_categories/NUM_THREADS;
+    if(cat_per_thread & 1) // make it even
+        cat_per_thread--;
+
+    /* load input parameters */
+    for (int i=0; i<NUM_THREADS; i++) {
+        param[i].lwe = lwe; /* set input parameter to thread number */
+        param[i].bkwStepPar = srcBkwStepPar;
+        param[i].srcSamples = srcSamples;
+        param[i].dstSamples = dstSamples;
+        param[i].minIndex1 = i == 0 ? minc : param[i-1].minIndex1 + cat_per_thread;
+        param[i].maxIndex1 = param[i].minIndex1 + cat_per_thread;
+        param[i].maxTotSamples = maxSamples;
+    }
+    param[NUM_THREADS-1].maxIndex1 = srcSamples->n_categories-2;
 
     /* process samples with LF2 method */
-    while (index2 < srcSamples->n_categories && dstSamples->n_samples < tot_final_samples)
+    /* start threads */
+    for (int i = 0; i < NUM_THREADS; ++i)
     {
-
-        // process single category
-        for (int i = 0; i < srcSamples->list_categories[index1].n_samples; i++)
-        {
-            for (int j=i+1; j < srcSamples->list_categories[index1].n_samples; j++)
-            {
-                subtractSamples(lwe, &tmpSample, &srcSamples->list_categories[index1].list[i], &srcSamples->list_categories[index1].list[j]);
-                
-                if (!checkzero((char*)tmpSample.a, sizeof(u16)*lwe->n) && unnaturalSelection(lwe, &tmpSample, srcBkwStepPar))
-                {
-	                // add it to the new list
-	                if (dstSamples->n_samples < tot_final_samples)
-	                {
-	                    dstSamples->list[dstSamples->n_samples].a = malloc(lwe->n*sizeof(u16));
-	                    memcpy(dstSamples->list[dstSamples->n_samples].a, tmpSample.a, lwe->n*sizeof(u16));
-	                    dstSamples->list[dstSamples->n_samples].z = tmpSample.z;
-	                    // dstSamples->list[dstSamples->n_samples].error = tmpSample.error;
-                        dstSamples->n_samples++;
-	                }
-	                else
-	                    goto exit;
-				}
-				else
-	            	discarded++;
-            }
+        if (!pthread_create(&thread[i], NULL, single_thread_final_lf2_work, (void*)&param[i])) {
+            // pthread_mutex_lock(&screen_mutex);
+            // printf("Thread %d created!\n", i+1);
+            // pthread_mutex_unlock(&screen_mutex);
+        } else {
+            // pthread_mutex_lock(&screen_mutex);
+            // printf("Error creating thread %d!\n", i+1);
+            // pthread_mutex_unlock(&screen_mutex);
         }
-
-        // process single category
-        for (int i = 0; i < srcSamples->list_categories[index2].n_samples; i++)
-        {
-            for (int j=i+1; j < srcSamples->list_categories[index2].n_samples; j++)
-            {
-                subtractSamples(lwe, &tmpSample, &srcSamples->list_categories[index2].list[i], &srcSamples->list_categories[index2].list[j]);
-                
-                if (!checkzero((char*)tmpSample.a, sizeof(u16)*lwe->n) && unnaturalSelection(lwe, &tmpSample, srcBkwStepPar))
-                {
-
-	                // add it to the new list
-	                if (dstSamples->n_samples < tot_final_samples)
-	                {
-	                    dstSamples->list[dstSamples->n_samples].a = malloc(lwe->n*sizeof(u16));
-	                    memcpy(dstSamples->list[dstSamples->n_samples].a, tmpSample.a, lwe->n*sizeof(u16));
-	                    dstSamples->list[dstSamples->n_samples].z = tmpSample.z;
-	                    // dstSamples->list[dstSamples->n_samples].error = tmpSample.error;
-                        dstSamples->n_samples++;
-	                }
-	                else
-	                    goto exit;
-				}
-				else
-	            	discarded++;
-            }
-        }
-
-        // process two adjacent category
-        for (int i=0; i<srcSamples->list_categories[index1].n_samples; i++)
-        {
-            for (int j=0; j<srcSamples->list_categories[index2].n_samples; j++)
-            {
-                addSamples(lwe, &tmpSample, &srcSamples->list_categories[index1].list[i], &srcSamples->list_categories[index2].list[j]);
-                
-                if (!checkzero((char*)tmpSample.a, sizeof(u16)*lwe->n) && unnaturalSelection(lwe, &tmpSample, srcBkwStepPar))
-                {
-	                // add it to the new list
-	                if (dstSamples->n_samples < tot_final_samples)
-	                {
-	                    dstSamples->list[dstSamples->n_samples].a = malloc(lwe->n*sizeof(u16));
-	                    memcpy(dstSamples->list[dstSamples->n_samples].a, tmpSample.a, lwe->n*sizeof(u16));
-	                    dstSamples->list[dstSamples->n_samples].z = tmpSample.z;
-	                    // dstSamples->list[dstSamples->n_samples].error = tmpSample.error;
-                        dstSamples->n_samples++;
-	                }
-	                else
-	                    goto exit;
-				}
-				else
-	            	discarded++;
-            }
-        }
-
-        index1 += 2;
-        index2 += 2;
     }
 
-exit:
+    /* wait until all threads have completed */
+    for (int i = 0; i < NUM_THREADS; i++) {
+        if (!pthread_join(thread[i], NULL)) {
+            // pthread_mutex_lock(&screen_mutex);
+            // printf("Thread %d joined!\n", i+1);
+            // pthread_mutex_unlock(&screen_mutex);
+        } else {
+            // pthread_mutex_lock(&screen_mutex);
+            // printf("Error joining thread %d!\n", i+1);
+            // pthread_mutex_unlock(&screen_mutex);
+        }
+    }
+
     time_stamp("discarded samples: %ld", discarded);
-    free(tmpSample.a);
 
     return 0;
 }

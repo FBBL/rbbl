@@ -246,12 +246,12 @@ void *single_work_bruteforce_guess(void *params){
                     tmp_si = BFguess[j]+q;
                 else
                     tmp_si = BFguess[j];
-                z = (z - (p->Samples->a_list[i+p->zero_positions+p->fwht_positions+j]*tmp_si) % q );
+                z = (z - (p->Samples->a_list[i*p->lwe->n+p->zero_positions+p->fwht_positions+j]*tmp_si) % q );
                 if (z < 0)
                     z += q;
             }
             z = z > (q-1)/2 ? z -q : z;
-            intsample = sample_to_int(&p->Samples->a_list[i + p->zero_positions], p->fwht_positions, q);
+            intsample = sample_to_int(&p->Samples->a_list[i*p->lwe->n + p->zero_positions], p->fwht_positions, q);
             lsb_z = z%2 == 0 ? 0 : 1;
 
             if (lsb_z == 0)
@@ -306,12 +306,7 @@ void *single_work_bruteforce_guess(void *params){
 }
 
 
-
-
-
-
-
-/* Hybrid solver that uses brute-force for bf_positions number of positions and Fast Walsh Hadamard Transform for fftPositions number of positions
+/* Hybrid solver that uses brute-force for bf_positions number of positions and Fast Walsh Hadamard Transform for fwht_positions number of positions
  */
 int solve_fwht_search_bruteforce(u8 *binary_solution, short *bf_solution, int zero_positions, int bf_positions, int fwht_positions, unsortedSamplesList *reducedSamples, lweInstance *lwe)
 {

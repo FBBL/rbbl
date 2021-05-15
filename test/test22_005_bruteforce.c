@@ -29,7 +29,7 @@
 #include <stdlib.h>
 
 #define NUM_REDUCTION_STEPS 8
-#define BRUTE_FORCE_POSITIONS 1 
+#define BRUTE_FORCE_POSITIONS 2
 #define ZERO_POSITIONS 11
 
 int main()
@@ -38,7 +38,7 @@ int main()
     u64 samples_for_guessing = 800000;
 
     lweInstance lwe;
-    int n = 21;
+    int n = 22;
     int q = 401;
     double alpha = 0.005;
 

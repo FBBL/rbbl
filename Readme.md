@@ -2,11 +2,11 @@
 
 Supporting smooth-Lazy Modulus Switch and FWHT-based guessing method.
 
-#####Build
+##### Build
 ```
 make
 ```
-#####Run
+##### Run
 ```
 ./build/test20_005.c
 ```

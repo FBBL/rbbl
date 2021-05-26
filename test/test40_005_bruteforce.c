@@ -42,7 +42,7 @@ int main()
     int q = 1601;
     double alpha = 0.005;
 
-    time_stamp("LWE parameters: n: %d, q: %d, sigma: %lf*q. Initial samples: %lu", n, q, alpha, n_samples);
+    time_stamp("LWE parameters: n: %d, q: %d, sigma: %lf*q. Initial samples: %lu, n_cores: %d", n, q, alpha, n_samples, (int)NUM_THREADS);
 
     // initialize random
     time_t start = time(NULL);
@@ -128,7 +128,7 @@ int main()
 
         ret = transition_bkw_step_smooth_lms(&lwe, &bkwStepPar[i+1], srcSamples, dstSamples);
 
-        if(i != numReductionSteps-2){
+        if (i != numReductionSteps-2) {
             // clean past list
             tmpSamples = srcSamples;
             clean_sorted_samples(tmpSamples);

@@ -27,6 +27,7 @@
 static pthread_mutex_t screen_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t *storage_mutex;
 static int n_storage_mutex;
+static u64 max_num_categories_per_mutex;
 static u64 discarded = 0;
 
 typedef struct {
@@ -143,7 +144,7 @@ void *single_thread_lf2_work(void *params){
 		            exit(0);
 	            }
 #endif
-	            mutex_index = category % n_storage_mutex;
+	            mutex_index = category / max_num_categories_per_mutex;
 
 	            if (category > p->dstSamples->n_categories || category < 0)
 	            {
@@ -205,7 +206,7 @@ void *single_thread_lf2_work(void *params){
 		            exit(0);
 	            }
 #endif
-	            mutex_index = category % n_storage_mutex;
+	            mutex_index = category / max_num_categories_per_mutex;
 
 	            if (category > p->dstSamples->n_categories || category < 0)
 	            {
@@ -267,7 +268,7 @@ void *single_thread_lf2_work(void *params){
 		            exit(0);
 	            }
 #endif
-	            mutex_index = category % n_storage_mutex;
+	            mutex_index = category / max_num_categories_per_mutex;
 
 	            if (category > p->dstSamples->n_categories || category < 0)
 	            {
@@ -384,6 +385,7 @@ int transition_bkw_step_smooth_lms(lweInstance *lwe, bkwStepParameters *bkwStepP
     Params param[NUM_THREADS]; /* one set of in-/output paramaters per thread, so no need to lock these */
 
     n_storage_mutex = dstSamples->n_categories < MAX_NUM_STORAGE_MUTEXES ? dstSamples->n_categories : MAX_NUM_STORAGE_MUTEXES;
+    max_num_categories_per_mutex = (dstSamples->n_categories + n_storage_mutex - 1) / n_storage_mutex;
     storage_mutex = malloc(n_storage_mutex * sizeof(pthread_mutex_t));
     for (int i=0; i<n_storage_mutex; i++) { pthread_mutex_init(&storage_mutex[i], NULL); }
 

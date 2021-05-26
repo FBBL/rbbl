@@ -42,7 +42,7 @@ int main()
     int q = 401;
     double alpha = 0.005;
 
-    time_stamp("LWE parameters: n: %d, q: %d, sigma: %lf*q. Initial samples: %lu", n, q, alpha, n_samples);
+    time_stamp("LWE parameters: n: %d, q: %d, sigma: %lf*q. Initial samples: %lu, n_cores: %d", n, q, alpha, n_samples, (int)NUM_THREADS);
 
     // initialize random
     time_t start = time(NULL);
@@ -186,8 +186,6 @@ int main()
     long seconds = end.tv_sec - begin.tv_sec;
     long nanoseconds = end.tv_nsec - begin.tv_nsec;
     double elapsed = seconds + nanoseconds*1e-9;
-
-
 
     printf("\nFound Solution   \n");
     for(int i = 0; i<fwht_positions; i++)

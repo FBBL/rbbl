@@ -42,7 +42,7 @@ int main()
     int q = 1601;
     double alpha = 0.005;
 
-    time_stamp("LWE parameters: n: %d, q: %d, sigma: %lf*q. Initial samples: %lu, n_cores: %d", n, q, alpha, n_samples, (int)NUM_THREADS);
+    time_stamp("LWE parameters: n: %d, q: %d, sigma: %lf*q. Initial samples: %llu, n_cores: %d", n, q, alpha, n_samples, (int)NUM_THREADS);
 
     // initialize random
     time_t start = time(NULL);
@@ -55,9 +55,9 @@ int main()
 //   n = 40, alpha = 0.005, 8 smoothplainBKW + 5 smoothLMS      0      1     2    3    4     5     6    7    8    9   10    11    12  
     int start_index[NUM_REDUCTION_STEPS] =                     {0,     2,    4,   6,   8,   11,   13,  15,  17,  21,  25,   29,   34};
     int len_step[NUM_REDUCTION_STEPS] =                        {2,     2,    2,   2,   2,    2,    2,   2,   4,   4,   4,    5,    5};
-    int p_step[NUM_REDUCTION_STEPS] =                          {1,     1,    1,   1,   1,    1,    1,   1,  12,  24,  33,   48,   62};
-    int p1_step[NUM_REDUCTION_STEPS] =                         {280,  80,   20,   5,   1,  200,   51,  12, 321, 800, 401, 1601, 1601};
-    int prev_p1_step[NUM_REDUCTION_STEPS] =                    {-1,  280,   80,  20,   5,   -1,  200,  51,  12, 321, 800,  401, 1601};
+    int p_step[NUM_REDUCTION_STEPS] =                          {1,     1,    1,   1,   1,    1,    1,   1,  13,  24,  33,   48,   66};
+    int p1_step[NUM_REDUCTION_STEPS] =                         {280,  80,   20,   5,   1,  178,   41,   9, 267, 534, 321, 1601, 1601};
+    int prev_p1_step[NUM_REDUCTION_STEPS] =                    {-1,  280,   80,  20,   5,   -1,  178,  41,   9, 267, 534,  321, 1601};
     int un_selection[NUM_REDUCTION_STEPS] =                    {0,     0,    0,   0,   0,    0,    0,   0,  16,  23,  33,   40,   40};
 
     bkwStepParameters bkwStepPar[NUM_REDUCTION_STEPS];
@@ -75,12 +75,12 @@ int main()
         bkwStepPar[i].un_selection = un_selection[i];
         ASSERT(bkwStepPar[i].p2 != 0, "smooth-LMS p2 parameter not valid");
         tmp_categories = num_categories(&lwe, &bkwStepPar[i]);
-        printf("step %d categories %lu\n", i, tmp_categories);
+        printf("step %d categories %llu\n", i, tmp_categories);
         if (tmp_categories > max_categories)
             max_categories = tmp_categories;
     }
 
-    // exit(0);
+    //exit(0);
 
     int bf_positions = BRUTE_FORCE_POSITIONS;
     int zero_positions = ZERO_POSITIONS;
@@ -89,7 +89,7 @@ int main()
     u8 binary_solution[fwht_positions];
     short bf_solution[bf_positions];
 
-    time_stamp("Generate %lu samples", n_samples);
+    time_stamp("Generate %llu samples", n_samples);
     unsortedSamplesList Samples;
     create_lwe_samples(&Samples, &lwe, n_samples);
 

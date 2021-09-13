@@ -29,17 +29,17 @@
 #include <stdlib.h>
 
 #define NUM_REDUCTION_STEPS 13
-#define BRUTE_FORCE_POSITIONS 1
-#define ZERO_POSITIONS 17
+#define BRUTE_FORCE_POSITIONS 0
+#define ZERO_POSITIONS 16
 
 int main()
 {
-    u64 n_samples = 18000000;
-    u64 samples_for_guessing = 5000000;
+    u64 n_samples = 800;
+    u64 samples_for_guessing = 800;
 
     lweInstance lwe;
-    int n = 40;
-    int q = 1601;
+    int n = 50;
+    int q = 2503;
     double alpha = 0.005;
 
     time_stamp("LWE parameters: n: %d, q: %d, sigma: %lf*q. Initial samples: %lu, n_cores: %d", n, q, alpha, n_samples, (int)NUM_THREADS);
@@ -52,13 +52,16 @@ int main()
     time_stamp("Create LWE instance");
     lwe_init(&lwe, n, q, alpha);
 
-//   n = 40, alpha = 0.005, 8 smoothplainBKW + 5 smoothLMS      0      1     2    3    4     5     6    7    8    9   10    11    12
-    int start_index[NUM_REDUCTION_STEPS] =                     {0,     2,    4,   6,   8,   11,   13,  15,  18,  21,  25,   29,   34};
-    int len_step[NUM_REDUCTION_STEPS] =                        {2,     2,    2,   2,   2,    2,    2,   2,   3,   4,   4,    4,    5};
-    int p_step[NUM_REDUCTION_STEPS] =                          {1,     1,    1,   1,   1,    1,    1,   1,  13,  24,  33,   48,   66};
-    int p1_step[NUM_REDUCTION_STEPS] =                         {280,  80,   20,   5,   1,  178,   45,  12, 180, 479, 336,   48, 1601};
-    int prev_p1_step[NUM_REDUCTION_STEPS] =                    {-1,  280,   80,  20,   5,   -1,  178,  45,  -1, 180, 479,  336, 1601};
-    int un_selection[NUM_REDUCTION_STEPS] =                    {0,     0,    0,   0,   0,    0,    0,   0,  16,  23,  33,   40,   40};
+    time_stamp("Generate %lu samples", n_samples);
+    unsortedSamplesList Samples;
+    create_lwe_samples(&Samples, &lwe, n_samples);
+                                                            //  0    1    2    3   4    5    6    7    8    9   10   11   12
+    int start_index[NUM_REDUCTION_STEPS] =                     {0,   2,   5,  8,  10,  13,  16,  18,  21,  25,  30,  35,  41};
+    int len_step[NUM_REDUCTION_STEPS] =                        {2,   3,   2,  2,   3,   2,   2,   3,   4,   5,   5,   6,   6};
+    int p_step[NUM_REDUCTION_STEPS] =                          {1,   1,   1,  1,   1,   1,   1,   1,  14,  31,  44,  61,  88};
+    int p1_step[NUM_REDUCTION_STEPS] =                         {9, 150,   1,  9, 150,   1,   9, 150, 160, 626, 418,  61,  2503};
+    int prev_p1_step[NUM_REDUCTION_STEPS] =                   {-1,   9, 150, -1,   9, 150,  -1,   9, 150, 160, 626, 418,  -1};
+    int un_selection[NUM_REDUCTION_STEPS] =                   { 0,   0,   0,  0,   0,   0,   0,   0,   0,   0,   0,   0,  16};
 
     bkwStepParameters bkwStepPar[NUM_REDUCTION_STEPS];
     /* Set steps: smooth LMS */
@@ -79,19 +82,14 @@ int main()
         if (tmp_categories > max_categories)
             max_categories = tmp_categories;
     }
+    exit(0);
 
-    // exit(0);
-
-    int bf_positions = BRUTE_FORCE_POSITIONS;
+    int bruteForcePositions = BRUTE_FORCE_POSITIONS;
+    int fwht_positions = lwe.n - ZERO_POSITIONS;
     int zero_positions = ZERO_POSITIONS;
-    int fwht_positions = lwe.n - zero_positions - bf_positions;
 
     u8 binary_solution[fwht_positions];
-    short bf_solution[bf_positions];
-
-    time_stamp("Generate %lu samples", n_samples);
-    unsortedSamplesList Samples;
-    create_lwe_samples(&Samples, &lwe, n_samples);
+    short bf_solution[bruteForcePositions];
 
     time_stamp("Start reduction phase");
 
@@ -128,7 +126,7 @@ int main()
 
         ret = transition_bkw_step_smooth_lms(&lwe, &bkwStepPar[i+1], srcSamples, dstSamples);
 
-        if (i != numReductionSteps-2) {
+        if(i != numReductionSteps-2){
             // clean past list
             tmpSamples = srcSamples;
             clean_sorted_samples(tmpSamples);
@@ -141,6 +139,11 @@ int main()
 
         time_stamp("Number of samples: %d", srcSamples->n_samples);
     }
+
+    clock_gettime(CLOCK_REALTIME, &end);
+    long seconds = end.tv_sec - begin.tv_sec;
+    long nanoseconds = end.tv_nsec - begin.tv_nsec;
+    double elapsed = seconds + nanoseconds*1e-9;
 
     /* perform last reduction step */
     int i = numReductionSteps-1;
@@ -156,17 +159,22 @@ int main()
 
     /* compute binary secret */
     u8 original_binary_secret[lwe.n];
+    // printf("(");
     for (int i = 0; i < lwe.n; ++i)
     {
-       if (lwe.s[i] < q/2)
+        // printf("%d ", lwe.s[i]);
+        if (lwe.s[i] < q/2)
             original_binary_secret[i] = lwe.s[i] % 2;
         else
             original_binary_secret[i] = (lwe.s[i]+1) % 2;
     }
+    // printf(")\n");
+
+    error_rate(zero_positions, &Samples, &lwe);
 
     /* Solving phase - using Fast Walsh Hadamard Tranform */
     time_stamp("Apply Fast Walsh Hadamard Tranform");
-    ret = solve_fwht_search_bruteforce(binary_solution, bf_solution, zero_positions, bf_positions, fwht_positions, &Samples, &lwe);
+    ret = solve_fwht_search(binary_solution, zero_positions, fwht_positions, &Samples, &lwe);
     if(ret)
     {
         printf("error %d in solve_fwht_search_hybrid\n", ret);
@@ -174,27 +182,17 @@ int main()
     }
     free_samples(&Samples);
 
-    clock_gettime(CLOCK_REALTIME, &end);
-    long seconds = end.tv_sec - begin.tv_sec;
-    long nanoseconds = end.tv_nsec - begin.tv_nsec;
-    double elapsed = seconds + nanoseconds*1e-9;
-
     printf("\nFound Solution   \n");
     for(int i = 0; i<fwht_positions; i++)
         printf("%d ",binary_solution[i]);
-    for(int i = 0; i<bf_positions; i++)
-        printf("%d ",bf_solution[i]);
     printf("\n");
 
     printf("\nOriginal Solution\n");
     for(int i = zero_positions; i<zero_positions+fwht_positions; i++)
         printf("%d ",original_binary_secret[i]);
-    for(int i = zero_positions+fwht_positions; i<lwe.n; i++)
-        printf("%d ",lwe.s[i]);
-    printf("\n");
+    printf("\n\n");
 
     printf("Time measured: %.3f seconds.\n", elapsed);
-
 
     return 0;
 }

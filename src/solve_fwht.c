@@ -63,18 +63,18 @@ u64 sample_to_int(u16 *input, int len, int q)
     return output;
 }
 
-void FWHT (long* data, int size)
+void FWHT (int* data, u64 size)
 {
     int n = log2(size);
-    long tmp;
-    for (int i = 0; i < n; ++i)
+    int tmp;
+    for (u64 i = 0; i < n; ++i)
     {
-        for (int j = 0; j < (1 << n); j += 1 << (i+1))
+        for (u64 j = 0; j < (((u64)1) << n); j += ((u64)1) << (i+1))
         {
-            for (int k = 0; k < (1<<i); ++k)
+            for (u64 k = 0; k < (((u64)1)<<i); ++k)
             {
-                int a = j + k;
-                int b = j + k + (1<<i);
+                u64 a = j + k;
+                u64 b = j + k + (((u64)1)<<i);
 
                 tmp = data[a];
                 data[a] += data[b];
@@ -101,8 +101,8 @@ int solve_fwht_search(u8 *binary_solution, int zero_positions, int fwht_position
     }
 
     /* create initial list */
-    u64 N = (u64)1<<fwht_positions; // N = 2^fwht_positions
-    long* list = calloc(N, sizeof(long));
+    u64 N = ((u64)1)<<fwht_positions; // N = 2^fwht_positions
+    int* list = calloc(N, sizeof(int));
     if (!list)
     {
         printf("*** solve_fwht_search: failed to allocate memory for initial list\n");
@@ -207,14 +207,14 @@ void *single_work_bruteforce_guess(void *params){
 
 	/* create initial list */
     u64 N = (u64)1 << p->fwht_positions; // N = 2^fwht_positions
-    long* list = calloc(N,sizeof(long));
+    int* list = calloc(N,sizeof(int));
     if (!list)
     {
         printf("*** solve_fwht_search: failed to allocate memory for initial list\n");
         exit(-1);
     }
 
-    long max_pos = -1;
+    u64 max_pos = -1;
     double max = 0;
     u64 intsample;
     short z, lsb_z;
@@ -231,7 +231,7 @@ void *single_work_bruteforce_guess(void *params){
 
 	do{
 
-       memset(list, 0, N*sizeof(long));
+       memset(list, 0, N*sizeof(int));
 
         // process all samples
         for (u64 i = 0; i < p->Samples->n_samples; ++i)
@@ -288,16 +288,16 @@ void *single_work_bruteforce_guess(void *params){
         printf(")\n");
         pthread_mutex_unlock(&screen_mutex);
 #endif
+        pthread_mutex_lock(&global_mutex);
         if(max > global_max)
         {
-        	pthread_mutex_lock(&global_mutex);
             global_max = max;
             for(int j = 0; j<p->fwht_positions; j++)
                 p_binary_solution[j] = bin_guess[j];
             for(int j = 0; j<p->bf_positions; j++)
                 p_bf_solution[j] = BFguess[j] >= 0 ? BFguess[j] : BFguess[j] +q;
-            pthread_mutex_unlock(&global_mutex);
         }
+        pthread_mutex_unlock(&global_mutex);
 
 	} while(nextBruteForceGuess(p->min, p->max, p->ratio, BFguess, p->bf_positions));
 

@@ -24,7 +24,7 @@ _SRC_files =  utils.c lwe_instance.c transition_times2_modq.c position_values_2_
 SRC_files = $(patsubst %,$(SRC_dir)/%,$(_SRC_files))
 OBJ_files = $(patsubst %.c,$(OBJ_dir)/%.o,$(_SRC_files))
 
-all: $(OBJ_dir) test20_005 test40_005 test40_005_bruteforce test22_005_bruteforce  
+all: $(OBJ_dir) test20_005 test40_005 test40_005_bruteforce test22_005_bruteforce test33_005
 
 # create build directory
 $(OBJ_dir):
@@ -44,6 +44,9 @@ test40_005: $(OBJ_files)
 	$(CC) $(CFLAGS) $(TEST_dir)/$@.c -o $(OBJ_dir)/$@ $(IDIR) $(LDIR) $^ $(LIBS)
 
 test20_005: $(OBJ_files)
+	$(CC) $(CFLAGS) $(TEST_dir)/$@.c -o $(OBJ_dir)/$@ $(IDIR) $(LDIR) $^ $(LIBS)
+
+test33_005: $(OBJ_files)
 	$(CC) $(CFLAGS) $(TEST_dir)/$@.c -o $(OBJ_dir)/$@ $(IDIR) $(LDIR) $^ $(LIBS)
 
 .PHONY: clean all

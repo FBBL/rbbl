@@ -45,7 +45,7 @@ int main()
     time_stamp("LWE parameters: n: %d, q: %d, sigma: %lf*q. Initial samples: %lu, n_cores: %d", n, q, alpha, n_samples, (int)NUM_THREADS);
 
     // initialize random
-    time_t start = time(NULL);
+    // time_t start = time(NULL);
     srand(time(NULL));
     randomUtilRandomize();
 
@@ -91,12 +91,10 @@ int main()
     }
     // exit(0);
 
-    int bruteForcePositions = BRUTE_FORCE_POSITIONS;
     int fwht_positions = lwe.n - ZERO_POSITIONS;
     int zero_positions = ZERO_POSITIONS;
 
     u8 binary_solution[fwht_positions];
-    short bf_solution[bruteForcePositions];
 
     time_stamp("Start reduction phase");
 
@@ -126,20 +124,24 @@ int main()
 
     // perform smooth LMS steps
     int numReductionSteps = NUM_REDUCTION_STEPS;
-    for (int i=0; i<numReductionSteps-1; i++){
+    for (int i=0; i<numReductionSteps-1; i++)
+    {
 
-    	time_stamp("Perform smooth LMS reduction step %d/%d", i+1, numReductionSteps);
+        time_stamp("Perform smooth LMS reduction step %d/%d", i+1, numReductionSteps);
         set_sorted_samples_list(dstSamples, &lwe, &bkwStepPar[i+1], srcSamples->n_samples, max_categories);
 
         ret = transition_bkw_step_smooth_lms(&lwe, &bkwStepPar[i+1], srcSamples, dstSamples);
 
-        if(i != numReductionSteps-2){
+        if(i != numReductionSteps-2)
+        {
             // clean past list
             tmpSamples = srcSamples;
             clean_sorted_samples(tmpSamples);
             srcSamples = dstSamples;
             dstSamples = tmpSamples;
-        } else {
+        }
+        else
+        {
             free_sorted_samples(srcSamples, max_categories);
             srcSamples = dstSamples;
         }
@@ -179,6 +181,13 @@ int main()
 
     error_rate(zero_positions, &Samples, &lwe);
 
+    if (Samples.n_samples == 0)
+    {
+        time_stamp("ERROR: not enough samples. Terminate the program.");
+        free_samples(&Samples);
+        exit(1);
+    }
+
     /* Solving phase - using Fast Walsh Hadamard Tranform */
     time_stamp("Apply Fast Walsh Hadamard Tranform");
     ret = solve_fwht_search(binary_solution, zero_positions, fwht_positions, &Samples, &lwe);
@@ -200,6 +209,17 @@ int main()
     printf("\n\n");
 
     printf("Time measured: %.3f seconds.\n", elapsed);
+
+    for (int i = 0; i < fwht_positions; ++i)
+    {
+        if (binary_solution[i] != original_binary_secret[zero_positions+i])
+        {
+            printf("Test Failed");
+            return 1;
+        }
+    }
+
+    printf("Test Passed");
 
     return 0;
 }

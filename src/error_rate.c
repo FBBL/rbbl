@@ -84,7 +84,8 @@ int error_rate(int zero_positions, unsortedSamplesList *Samples, lweInstance *lw
 
 
 
-int verify_samples(int zero_positions, sortedSamplesList *Samples, lweInstance *lwe){
+int verify_samples(int zero_positions, sortedSamplesList *Samples, lweInstance *lwe)
+{
 
     int n = lwe->n;
     int q = lwe->q;
@@ -105,7 +106,7 @@ int verify_samples(int zero_positions, sortedSamplesList *Samples, lweInstance *
                 exit(0);
             }
         }
-        
+
     }
 
     return 0;
@@ -113,7 +114,8 @@ int verify_samples(int zero_positions, sortedSamplesList *Samples, lweInstance *
 }
 
 
-int verify_unsorted_samples(int zero_positions, unsortedSamplesList *Samples, lweInstance *lwe){
+int verify_unsorted_samples(int zero_positions, unsortedSamplesList *Samples, lweInstance *lwe)
+{
 
     int n = lwe->n;
     int q = lwe->q;

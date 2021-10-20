@@ -23,11 +23,12 @@
 #define MIN(X, Y)  ((X) < (Y) ? (X) : (Y))
 
 /* define mutexes to protect common resources from concurrent access */
-static pthread_mutex_t screen_mutex = PTHREAD_MUTEX_INITIALIZER;
+//static pthread_mutex_t screen_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t tot_count_mutex = PTHREAD_MUTEX_INITIALIZER;
 static u64 discarded = 0;
 
-typedef struct {
+typedef struct
+{
     lweInstance *lwe;
     bkwStepParameters *bkwStepPar;
     sortedSamplesList *srcSamples;
@@ -40,7 +41,8 @@ typedef struct {
 static u64 subtractSamples(lweInstance *lwe, u16 *dst_a, u16 *dst_z, u16 *src1_a, u16 src1_z, u16 *src2_a, u16 src2_z)
 {
 
-    for (int i=0; i < lwe->n; i++){
+    for (int i=0; i < lwe->n; i++)
+    {
         dst_a[i] = (src1_a[i] - src2_a[i] + lwe->q);
         dst_a[i] = dst_a[i] >= lwe->q ? dst_a[i] -lwe->q : dst_a[i];
     }
@@ -53,7 +55,8 @@ static u64 subtractSamples(lweInstance *lwe, u16 *dst_a, u16 *dst_z, u16 *src1_a
 static u64 addSamples(lweInstance *lwe, u16 *dst_a, u16 *dst_z, u16 *src1_a, u16 src1_z, u16 *src2_a, u16 src2_z)
 {
 
-    for (int i=0; i < lwe->n; i++){
+    for (int i=0; i < lwe->n; i++)
+    {
         dst_a[i] = (src1_a[i] + src2_a[i]);
         dst_a[i] = dst_a[i] >= lwe->q ? dst_a[i] -lwe->q : dst_a[i];
     }
@@ -67,7 +70,6 @@ static u64 addSamples(lweInstance *lwe, u16 *dst_a, u16 *dst_z, u16 *src1_a, u16
 /* Return 1 if passes unnatural selection, 0 otherwise */
 static int unnaturalSelection(lweInstance *lwe, u16 *dst_a, bkwStepParameters *srcBkwStepPar)
 {
-    int n = lwe->n;
     int q = lwe->q;
 
     int tmp;
@@ -82,7 +84,8 @@ static int unnaturalSelection(lweInstance *lwe, u16 *dst_a, bkwStepParameters *s
     return 1;
 }
 
-void *single_thread_final_lf2_work(void *params){
+void *single_thread_final_lf2_work(void *params)
+{
 
     Params *p = (Params*)params;
 
@@ -94,8 +97,7 @@ void *single_thread_final_lf2_work(void *params){
 
     u16 in, jn;
 
-    u64 index1, index2, category, sample_index;
-    int n_samples_in_category, mutex_index;
+    u64 index1, index2, sample_index;
 
     int block_a = p->lwe->n*SAMPLES_PER_CATEGORY;
     int block_z = SAMPLES_PER_CATEGORY;
@@ -105,7 +107,8 @@ void *single_thread_final_lf2_work(void *params){
     {
         index2 = index1+1;
 
-        if (!(p->dstSamples->n_samples < p->maxTotSamples)){
+        if (!(p->dstSamples->n_samples < p->maxTotSamples))
+        {
             return NULL;
         }
 
@@ -123,17 +126,17 @@ void *single_thread_final_lf2_work(void *params){
 #endif
 
                 // add it to the new list
-            	if (!checkzero((char*)tmp_a, sizeof(u16)*p->lwe->n) && unnaturalSelection(p->lwe, tmp_a, p->bkwStepPar))
+                if (!checkzero((char*)tmp_a, sizeof(u16)*p->lwe->n) && unnaturalSelection(p->lwe, tmp_a, p->bkwStepPar))
                 {
-                	pthread_mutex_lock(&tot_count_mutex);
+                    pthread_mutex_lock(&tot_count_mutex);
                     sample_index = p->dstSamples->n_samples;
                     if (!(p->dstSamples->n_samples < p->maxTotSamples))
                     {
-                    	pthread_mutex_unlock(&tot_count_mutex);
-	            		return NULL;
+                        pthread_mutex_unlock(&tot_count_mutex);
+                        return NULL;
                     }
                     p->dstSamples->n_samples++;
-                    pthread_mutex_unlock(&tot_count_mutex);                    
+                    pthread_mutex_unlock(&tot_count_mutex);
                     memcpy(&p->dstSamples->a_list[sample_index*p->lwe->n], tmp_a, p->lwe->n*sizeof(u16));
                     p->dstSamples->z_list[sample_index] = tmp_z;
 #ifdef DEBUG
@@ -142,7 +145,7 @@ void *single_thread_final_lf2_work(void *params){
                 }
                 else
                 {
-                  	discarded++;
+                    discarded++;
                 }
             }
         }
@@ -161,14 +164,14 @@ void *single_thread_final_lf2_work(void *params){
 #endif
 
                 // add it to the new list
-            	if (!checkzero((char*)tmp_a, sizeof(u16)*p->lwe->n) && unnaturalSelection(p->lwe, tmp_a, p->bkwStepPar))
+                if (!checkzero((char*)tmp_a, sizeof(u16)*p->lwe->n) && unnaturalSelection(p->lwe, tmp_a, p->bkwStepPar))
                 {
-                	pthread_mutex_lock(&tot_count_mutex);
+                    pthread_mutex_lock(&tot_count_mutex);
                     sample_index = p->dstSamples->n_samples;
                     if (!(p->dstSamples->n_samples < p->maxTotSamples))
                     {
-                    	pthread_mutex_unlock(&tot_count_mutex);
-	            		return NULL;
+                        pthread_mutex_unlock(&tot_count_mutex);
+                        return NULL;
                     }
                     p->dstSamples->n_samples++;
                     pthread_mutex_unlock(&tot_count_mutex);
@@ -196,17 +199,17 @@ void *single_thread_final_lf2_work(void *params){
 
 #ifdef DEBUG
                 tmp_e = (p->srcSamples->e_list[index1*block_z +i] + p->srcSamples->e_list[index2*block_z +j] +p->lwe->q) %p->lwe->q;
-#endif 
+#endif
 
                 // add it to the new list
-            	if (!checkzero((char*)tmp_a, sizeof(u16)*p->lwe->n) && unnaturalSelection(p->lwe, tmp_a, p->bkwStepPar))
+                if (!checkzero((char*)tmp_a, sizeof(u16)*p->lwe->n) && unnaturalSelection(p->lwe, tmp_a, p->bkwStepPar))
                 {
-                	pthread_mutex_lock(&tot_count_mutex);
+                    pthread_mutex_lock(&tot_count_mutex);
                     sample_index = p->dstSamples->n_samples;
                     if (!(p->dstSamples->n_samples < p->maxTotSamples))
                     {
-                    	pthread_mutex_unlock(&tot_count_mutex);
-	            		return NULL;
+                        pthread_mutex_unlock(&tot_count_mutex);
+                        return NULL;
                     }
                     p->dstSamples->n_samples++;
                     pthread_mutex_unlock(&tot_count_mutex);
@@ -218,7 +221,7 @@ void *single_thread_final_lf2_work(void *params){
                 }
                 else
                 {
-                  	discarded++;
+                    discarded++;
                 }
             }
         }
@@ -240,11 +243,12 @@ int transition_bkw_step_final(lweInstance *lwe, bkwStepParameters *srcBkwStepPar
     u16 tmp_e;
 #endif
 
-    u64 index1, index2, minc, sample_index;
+    u64 minc, sample_index;
     dstSamples->n_samples = 0;
     discarded = 0;
 
-    if (srcSamples->n_categories & 1){
+    if (srcSamples->n_categories & 1)
+    {
 
         // process single category
         for (int i = 0; i < srcSamples->n_in_categories[0]; i++)
@@ -252,34 +256,35 @@ int transition_bkw_step_final(lweInstance *lwe, bkwStepParameters *srcBkwStepPar
             for (int j=i+1; j < srcSamples->n_in_categories[0]; j++)
             {
                 subtractSamples(lwe, tmp_a, &tmp_z, &srcSamples->a_list[0+i*lwe->n], srcSamples->z_list[0+i], &srcSamples->a_list[0+j*lwe->n], srcSamples->z_list[0+j]);
-                
+
 #ifdef DEBUG
                 tmp_e = (srcSamples->z_list[0+i] - srcSamples->z_list[j] + lwe->q) %lwe->q;
 #endif
 
                 if (!checkzero((char*)tmp_a, sizeof(u16)*lwe->n) && unnaturalSelection(lwe, tmp_a, srcBkwStepPar))
                 {
-	                // add it to the new list
-	                if (dstSamples->n_samples < maxSamples)
-	                {
+                    // add it to the new list
+                    if (dstSamples->n_samples < maxSamples)
+                    {
                         memcpy(&dstSamples->a_list[sample_index*lwe->n], tmp_a, lwe->n*sizeof(u16));
                         dstSamples->z_list[sample_index] = tmp_z;
 #ifdef DEBUG
                         dstSamples->e_list[sample_index] = tmp_e;
 #endif
-	                    dstSamples->n_samples++;
-	                }
-	                // else
-	                //     goto exit;
-	            }
-	            else
-	            	discarded++;
+                        dstSamples->n_samples++;
+                    }
+                    // else
+                    //     goto exit;
+                }
+                else
+                    discarded++;
             }
         }
 
         minc = 1;
     }
-    else{
+    else
+    {
         minc = 0;
     }
 
@@ -291,7 +296,8 @@ int transition_bkw_step_final(lweInstance *lwe, bkwStepParameters *srcBkwStepPar
         cat_per_thread--;
 
     /* load input parameters */
-    for (int i=0; i<NUM_THREADS; i++) {
+    for (int i=0; i<NUM_THREADS; i++)
+    {
         param[i].lwe = lwe; /* set input parameter to thread number */
         param[i].bkwStepPar = srcBkwStepPar;
         param[i].srcSamples = srcSamples;
@@ -306,11 +312,14 @@ int transition_bkw_step_final(lweInstance *lwe, bkwStepParameters *srcBkwStepPar
     /* start threads */
     for (int i = 0; i < NUM_THREADS; ++i)
     {
-        if (!pthread_create(&thread[i], NULL, single_thread_final_lf2_work, (void*)&param[i])) {
+        if (!pthread_create(&thread[i], NULL, single_thread_final_lf2_work, (void*)&param[i]))
+        {
             // pthread_mutex_lock(&screen_mutex);
             // printf("Thread %d created!\n", i+1);
             // pthread_mutex_unlock(&screen_mutex);
-        } else {
+        }
+        else
+        {
             // pthread_mutex_lock(&screen_mutex);
             // printf("Error creating thread %d!\n", i+1);
             // pthread_mutex_unlock(&screen_mutex);
@@ -318,12 +327,16 @@ int transition_bkw_step_final(lweInstance *lwe, bkwStepParameters *srcBkwStepPar
     }
 
     /* wait until all threads have completed */
-    for (int i = 0; i < NUM_THREADS; i++) {
-        if (!pthread_join(thread[i], NULL)) {
+    for (int i = 0; i < NUM_THREADS; i++)
+    {
+        if (!pthread_join(thread[i], NULL))
+        {
             // pthread_mutex_lock(&screen_mutex);
             // printf("Thread %d joined!\n", i+1);
             // pthread_mutex_unlock(&screen_mutex);
-        } else {
+        }
+        else
+        {
             // pthread_mutex_lock(&screen_mutex);
             // printf("Error joining thread %d!\n", i+1);
             // pthread_mutex_unlock(&screen_mutex);

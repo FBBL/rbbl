@@ -45,7 +45,7 @@ int main()
     time_stamp("LWE parameters: n: %d, q: %d, sigma: %lf*q. Initial samples: %lu, n_cores: %d", n, q, alpha, n_samples, (int)NUM_THREADS);
 
     // initialize random
-    time_t start = time(NULL);
+    // time_t start = time(NULL);
     srand(time(NULL));
     randomUtilRandomize();
 
@@ -126,20 +126,24 @@ int main()
 
     // perform smooth LMS steps
     int numReductionSteps = NUM_REDUCTION_STEPS;
-    for (int i=0; i<numReductionSteps-1; i++){
+    for (int i=0; i<numReductionSteps-1; i++)
+    {
 
         time_stamp("Perform smooth LMS reduction step %d/%d", i+1, numReductionSteps);
         set_sorted_samples_list(dstSamples, &lwe, &bkwStepPar[i+1], srcSamples->n_samples, max_categories);
 
         ret = transition_bkw_step_smooth_lms(&lwe, &bkwStepPar[i+1], srcSamples, dstSamples);
 
-        if(i != numReductionSteps-2){
+        if(i != numReductionSteps-2)
+        {
             // clean past list
             tmpSamples = srcSamples;
             clean_sorted_samples(tmpSamples);
             srcSamples = dstSamples;
             dstSamples = tmpSamples;
-        } else {
+        }
+        else
+        {
             free_sorted_samples(srcSamples, max_categories);
             srcSamples = dstSamples;
         }
@@ -169,6 +173,13 @@ int main()
             original_binary_secret[i] = lwe.s[i] % 2;
         else
             original_binary_secret[i] = (lwe.s[i]+1) % 2;
+    }
+
+    if (Samples.n_samples == 0)
+    {
+        time_stamp("ERROR: not enough samples. Terminate the program.");
+        free_samples(&Samples);
+        exit(1);
     }
 
     /* Solving phase - using Fast Walsh Hadamard Tranform */
@@ -202,6 +213,24 @@ int main()
     printf("\n");
 
     printf("Time measured: %.3f seconds.\n", elapsed);
+
+    for (int i = 0; i < fwht_positions; ++i)
+    {
+        if (binary_solution[i] != original_binary_secret[zero_positions+i])
+        {
+            printf("Test Failed");
+            return 1;
+        }
+    }
+    for (int i = 0; i<bf_positions; i++)
+        if (bf_solution[i] != lwe.s[zero_positions+fwht_positions+i])
+        {
+            printf("Test Failed");
+            return 1;
+        }
+
+
+    printf("Test Passed");
 
     return 0;
 }

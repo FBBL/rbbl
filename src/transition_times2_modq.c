@@ -19,7 +19,8 @@
 #include <pthread.h>
 
 // global variables
-typedef struct {
+typedef struct
+{
     lweInstance *lwe;
     bkwStepParameters *bkwStepPar;
     sortedSamplesList *sortedSamples;
@@ -38,7 +39,8 @@ static u64 max_num_categories_per_mutex;
 int sample_times2_modq(u16 *dst_a, u16 *dst_z, u16 *src_a, u16 src_z, lweInstance *lwe, bkwStepParameters *bkwStepPar)
 {
 
-    for (int i=0; i<lwe->n; i++){
+    for (int i=0; i<lwe->n; i++)
+    {
         dst_a[i] = (src_a[i] << 1);
         dst_a[i] = dst_a[i] >= lwe->q ? dst_a[i] -lwe->q : dst_a[i];
     }
@@ -51,7 +53,8 @@ int sample_times2_modq(u16 *dst_a, u16 *dst_z, u16 *src_a, u16 src_z, lweInstanc
 }
 
 #ifdef DEBUG
-int verify_samplex2(u16 *a, u16 z, u16 e, lweInstance *lwe){
+int verify_samplex2(u16 *a, u16 z, u16 e, lweInstance *lwe)
+{
 
     int sum = 0;
     for (int k = 0; k < lwe->n; ++k)
@@ -68,7 +71,8 @@ int verify_samplex2(u16 *a, u16 z, u16 e, lweInstance *lwe){
 }
 #endif
 
-void *single_thread_work(void *params){
+void *single_thread_work(void *params)
+{
 
     Params *p = (Params*)params;
 
@@ -91,14 +95,15 @@ void *single_thread_work(void *params){
 
 #ifdef DEBUG
         tmp_e = (p->unsortedSamples->e_list[count] << 1) % p->lwe->q;
-        if(verify_samplex2(tmp_a, tmp_z, tmp_e, p->lwe)){
-                    for (int k = 0; k < p->lwe->n; k++)
-                    {
-                        printf("%d x2 = %d\n", &p->unsortedSamples->a_list[count*p->lwe->n], tmp_a[k]);               
-                    }
-                    printf("%d x2 = %d\n", p->unsortedSamples->z_list[count], tmp_z);
-                    printf("%d x2 = %d\n", p->unsortedSamples->e_list[count], tmp_e);
-                    exit(0);
+        if(verify_samplex2(tmp_a, tmp_z, tmp_e, p->lwe))
+        {
+            for (int k = 0; k < p->lwe->n; k++)
+            {
+                printf("%d x2 = %d\n", &p->unsortedSamples->a_list[count*p->lwe->n], tmp_a[k]);
+            }
+            printf("%d x2 = %d\n", p->unsortedSamples->z_list[count], tmp_z);
+            printf("%d x2 = %d\n", p->unsortedSamples->e_list[count], tmp_e);
+            exit(0);
         }
 #endif
         n_samples_in_category = p->sortedSamples->n_in_categories[category];
@@ -145,10 +150,14 @@ int transition_times2_modq(lweInstance *lwe, bkwStepParameters *bkwStepPar, sort
 
     max_num_categories_per_mutex = (sortedSamples->n_categories + n_storage_mutex - 1) / n_storage_mutex;
     storage_mutex = malloc(n_storage_mutex * sizeof(pthread_mutex_t));
-    for (int i=0; i<n_storage_mutex; i++) { pthread_mutex_init(&storage_mutex[i], NULL); }
+    for (int i=0; i<n_storage_mutex; i++)
+    {
+        pthread_mutex_init(&storage_mutex[i], NULL);
+    }
 
     /* load input parameters */
-    for (int i=0; i<NUM_THREADS; i++) {
+    for (int i=0; i<NUM_THREADS; i++)
+    {
         param[i].lwe = lwe; /* set input parameter to thread number */
         param[i].bkwStepPar = bkwStepPar;
         param[i].sortedSamples = sortedSamples;
@@ -162,11 +171,14 @@ int transition_times2_modq(lweInstance *lwe, bkwStepParameters *bkwStepPar, sort
     /* start threads */
     for (int i = 0; i < NUM_THREADS; ++i)
     {
-        if (!pthread_create(&thread[i], NULL, single_thread_work, (void*)&param[i])) {
+        if (!pthread_create(&thread[i], NULL, single_thread_work, (void*)&param[i]))
+        {
             // pthread_mutex_lock(&screen_mutex);
             // printf("Thread %d created!\n", i+1);
             // pthread_mutex_unlock(&screen_mutex);
-        } else {
+        }
+        else
+        {
             // pthread_mutex_lock(&screen_mutex);
             // printf("Error creating thread %d!\n", i+1);
             // pthread_mutex_unlock(&screen_mutex);
@@ -174,19 +186,26 @@ int transition_times2_modq(lweInstance *lwe, bkwStepParameters *bkwStepPar, sort
     }
 
     /* wait until all threads have completed */
-    for (int i = 0; i < NUM_THREADS; i++) {
-        if (!pthread_join(thread[i], NULL)) {
+    for (int i = 0; i < NUM_THREADS; i++)
+    {
+        if (!pthread_join(thread[i], NULL))
+        {
             // pthread_mutex_lock(&screen_mutex);
             // printf("Thread %d joined!\n", i+1);
             // pthread_mutex_unlock(&screen_mutex);
-        } else {
+        }
+        else
+        {
             // pthread_mutex_lock(&screen_mutex);
             // printf("Error joining thread %d!\n", i+1);
             // pthread_mutex_unlock(&screen_mutex);
         }
     }
 
-    for (int i=0; i<n_storage_mutex; i++) { pthread_mutex_destroy(&storage_mutex[i]); }
+    for (int i=0; i<n_storage_mutex; i++)
+    {
+        pthread_mutex_destroy(&storage_mutex[i]);
+    }
 
     free(storage_mutex);
 

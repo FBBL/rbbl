@@ -154,7 +154,7 @@ int solve_fwht_search(u8 *binary_solution, int zero_positions, int fwht_position
 /* THREADED HYBRID SEARCH */
 
 
-/* min and max refer to the first bruteforce position, 
+/* min and max refer to the first bruteforce position,
   return 0 if guesses are terminated, otherwise 1 */
 int nextBruteForceGuess(int min, int max, int ratio, int *BFguess, int lenght)
 {
@@ -170,19 +170,21 @@ int nextBruteForceGuess(int min, int max, int ratio, int *BFguess, int lenght)
         }
     }
 
-	if (BFguess[0] < max) {
-		BFguess[0]++;
-		for(int j = lenght-1; j>0; j--)
-                BFguess[j] = -ratio;
-		return 1;
-	}
-	else
-		return 0;
+    if (BFguess[0] < max)
+    {
+        BFguess[0]++;
+        for(int j = lenght-1; j>0; j--)
+            BFguess[j] = -ratio;
+        return 1;
+    }
+    else
+        return 0;
 
 }
 
 // global variables
-typedef struct {
+typedef struct
+{
     lweInstance *lwe;
     unsortedSamplesList *Samples;
     int bf_positions;
@@ -198,14 +200,15 @@ static u8 *p_binary_solution;
 static short *p_bf_solution;
 
 static pthread_mutex_t global_mutex = PTHREAD_MUTEX_INITIALIZER;
-static pthread_mutex_t screen_mutex = PTHREAD_MUTEX_INITIALIZER;
+//static pthread_mutex_t screen_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-void *single_work_bruteforce_guess(void *params){
+void *single_work_bruteforce_guess(void *params)
+{
 
-	Params *p = (Params*)params;
-	int q = p->lwe->q;
+    Params *p = (Params*)params;
+    int q = p->lwe->q;
 
-	/* create initial list */
+    /* create initial list */
     u64 N = (u64)1 << p->fwht_positions; // N = 2^fwht_positions
     int* list = calloc(N,sizeof(int));
     if (!list)
@@ -229,9 +232,10 @@ void *single_work_bruteforce_guess(void *params){
     for(int i = 1; i<p->bf_positions; i++)
         BFguess[i] = -p->ratio;
 
-	do{
+    do
+    {
 
-       memset(list, 0, N*sizeof(int));
+        memset(list, 0, N*sizeof(int));
 
         // process all samples
         for (u64 i = 0; i < p->Samples->n_samples; ++i)
@@ -299,9 +303,10 @@ void *single_work_bruteforce_guess(void *params){
         }
         pthread_mutex_unlock(&global_mutex);
 
-	} while(nextBruteForceGuess(p->min, p->max, p->ratio, BFguess, p->bf_positions));
+    }
+    while(nextBruteForceGuess(p->min, p->max, p->ratio, BFguess, p->bf_positions));
 
-	free(list);
+    free(list);
 
 }
 
@@ -310,7 +315,6 @@ void *single_work_bruteforce_guess(void *params){
  */
 int solve_fwht_search_bruteforce(u8 *binary_solution, short *bf_solution, int zero_positions, int bf_positions, int fwht_positions, unsortedSamplesList *reducedSamples, lweInstance *lwe)
 {
-    int q = lwe->q;
     int n = lwe->n;
 
     ASSERT(1 <= fwht_positions && fwht_positions <= MAX_FWHT, "The number of positions for fwht is not supported in this implementation!\n");
@@ -322,12 +326,13 @@ int solve_fwht_search_bruteforce(u8 *binary_solution, short *bf_solution, int ze
 
     int ratio = round(lwe->sigma*4); // 2*3*standard_deviation is the interval length where to search
 
-	pthread_t thread[NUM_THREADS];
+    pthread_t thread[NUM_THREADS];
     Params param[NUM_THREADS]; /* one set of in-/output paramaters per thread, so no need to lock these */
 
 
     /* load input parameters */
-    for (int i=0; i<NUM_THREADS; i++) {
+    for (int i=0; i<NUM_THREADS; i++)
+    {
         param[i].lwe = lwe; /* set input parameter to thread number */
         param[i].Samples = reducedSamples;
         param[i].bf_positions = bf_positions;
@@ -343,15 +348,18 @@ int solve_fwht_search_bruteforce(u8 *binary_solution, short *bf_solution, int ze
     p_bf_solution = bf_solution;
     p_binary_solution = binary_solution;
 
- 
+
     /* start threads */
     for (int i = 0; i < NUM_THREADS; ++i)
     {
-        if (!pthread_create(&thread[i], NULL, single_work_bruteforce_guess, (void*)&param[i])) {
+        if (!pthread_create(&thread[i], NULL, single_work_bruteforce_guess, (void*)&param[i]))
+        {
             // pthread_mutex_lock(&screen_mutex);
             // printf("Thread %d created!\n", i+1);
             // pthread_mutex_unlock(&screen_mutex);
-        } else {
+        }
+        else
+        {
             // pthread_mutex_lock(&screen_mutex);
             // printf("Error creating thread %d!\n", i+1);
             // pthread_mutex_unlock(&screen_mutex);
@@ -359,12 +367,16 @@ int solve_fwht_search_bruteforce(u8 *binary_solution, short *bf_solution, int ze
     }
 
     /* wait until all threads have completed */
-    for (int i = 0; i < NUM_THREADS; i++) {
-        if (!pthread_join(thread[i], NULL)) {
+    for (int i = 0; i < NUM_THREADS; i++)
+    {
+        if (!pthread_join(thread[i], NULL))
+        {
             // pthread_mutex_lock(&screen_mutex);
             // printf("Thread %d joined!\n", i+1);
             // pthread_mutex_unlock(&screen_mutex);
-        } else {
+        }
+        else
+        {
             // pthread_mutex_lock(&screen_mutex);
             // printf("Error joining thread %d!\n", i+1);
             // pthread_mutex_unlock(&screen_mutex);

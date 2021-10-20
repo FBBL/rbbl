@@ -35,7 +35,7 @@
 int main()
 {
     u64 n_samples = 18000000;
-    u64 samples_for_guessing = 5000000;
+    u64 samples_for_guessing = 3000000;
 
     lweInstance lwe;
     int n = 40;
@@ -45,7 +45,7 @@ int main()
     time_stamp("LWE parameters: n: %d, q: %d, sigma: %lf*q. Initial samples: %llu, n_cores: %d", n, q, alpha, n_samples, (int)NUM_THREADS);
 
     // initialize random
-    time_t start = time(NULL);
+    // time_t start = time(NULL);
     srand(time(NULL));
     randomUtilRandomize();
 
@@ -60,9 +60,11 @@ int main()
     int prev_p1_step[NUM_REDUCTION_STEPS] =                    {-1,  280,   80,  20,   5,   -1,  178,  45,  -1, 180, 479,  336, 1601};
     int un_selection[NUM_REDUCTION_STEPS] =                    {0,     0,    0,   0,   0,    0,    0,   0,  16,  23,  33,   40,   40};
 
+    float increase_factor[NUM_REDUCTION_STEPS] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+
     bkwStepParameters bkwStepPar[NUM_REDUCTION_STEPS];
     /* Set steps: smooth LMS */
-    u64 max_categories = 0, tmp_categories;
+    u64 max_categories = 0, tmp_categories[NUM_REDUCTION_STEPS];
 
     for (int i=0; i<NUM_REDUCTION_STEPS; i++)
     {
@@ -74,13 +76,11 @@ int main()
         bkwStepPar[i].prev_p1 = prev_p1_step[i];// i ==  0 ? -1 : bkwStepPar[i-1].p1;
         bkwStepPar[i].un_selection = un_selection[i];
         ASSERT(bkwStepPar[i].p2 != 0, "smooth-LMS p2 parameter not valid");
-        tmp_categories = num_categories(&lwe, &bkwStepPar[i]);
-        printf("step %d categories %llu\n", i, tmp_categories);
-        if (tmp_categories > max_categories)
-            max_categories = tmp_categories;
+        tmp_categories[i] = num_categories(&lwe, &bkwStepPar[i]);
+        printf("step %d categories %lu\n", i, tmp_categories[i]);
+        if (tmp_categories[i] > max_categories)
+            max_categories = tmp_categories[i];
     }
-
-    //exit(0);
 
     int bf_positions = BRUTE_FORCE_POSITIONS;
     int zero_positions = ZERO_POSITIONS;
@@ -100,8 +100,8 @@ int main()
 
     sortedSamplesList *srcSamples, *dstSamples, *tmpSamples;
 
-    allocate_sorted_samples_list(&sortedSamples1, &lwe, &bkwStepPar[0], Samples.n_samples, max_categories);
-    set_sorted_samples_list(&sortedSamples1, &lwe, &bkwStepPar[0], Samples.n_samples, max_categories);
+    allocate_sorted_samples_list(&sortedSamples1, &lwe, &bkwStepPar[0], tmp_categories[0]*increase_factor[0], max_categories);
+    set_sorted_samples_list(&sortedSamples1, &lwe, &bkwStepPar[0], tmp_categories[0]*increase_factor[0], max_categories);
 
     /* multiply times 2 mod q and sort (unsorted) samples */
     time_stamp("Multiply samples times 2 modulo q");
@@ -114,27 +114,31 @@ int main()
     srcSamples = &sortedSamples1;
     dstSamples = &sortedSamples2;
 
-    allocate_sorted_samples_list(dstSamples, &lwe, &bkwStepPar[1], srcSamples->n_samples, max_categories);
+    allocate_sorted_samples_list(dstSamples, &lwe, &bkwStepPar[1], tmp_categories[0]*increase_factor[0], max_categories);
 
     struct timespec begin, end;
     clock_gettime(CLOCK_REALTIME, &begin);
 
     // perform smooth LMS steps
     int numReductionSteps = NUM_REDUCTION_STEPS;
-    for (int i=0; i<numReductionSteps-1; i++){
+    for (int i=0; i<numReductionSteps-1; i++)
+    {
 
-    	time_stamp("Perform smooth LMS reduction step %d/%d", i+1, numReductionSteps);
-        set_sorted_samples_list(dstSamples, &lwe, &bkwStepPar[i+1], srcSamples->n_samples, max_categories);
+        time_stamp("Perform smooth LMS reduction step %d/%d", i+1, numReductionSteps);
+        set_sorted_samples_list(dstSamples, &lwe, &bkwStepPar[i+1], tmp_categories[i+1]*increase_factor[i+1], max_categories);
 
         ret = transition_bkw_step_smooth_lms(&lwe, &bkwStepPar[i+1], srcSamples, dstSamples);
 
-        if (i != numReductionSteps-2) {
+        if (i != numReductionSteps-2)
+        {
             // clean past list
             tmpSamples = srcSamples;
             clean_sorted_samples(tmpSamples);
             srcSamples = dstSamples;
             dstSamples = tmpSamples;
-        } else {
+        }
+        else
+        {
             free_sorted_samples(srcSamples, max_categories);
             srcSamples = dstSamples;
         }
@@ -158,10 +162,17 @@ int main()
     u8 original_binary_secret[lwe.n];
     for (int i = 0; i < lwe.n; ++i)
     {
-       if (lwe.s[i] < q/2)
+        if (lwe.s[i] < q/2)
             original_binary_secret[i] = lwe.s[i] % 2;
         else
             original_binary_secret[i] = (lwe.s[i]+1) % 2;
+    }
+
+    if (Samples.n_samples == 0)
+    {
+        time_stamp("ERROR: not enough samples. Terminate the program.");
+        free_samples(&Samples);
+        exit(1);
     }
 
     /* Solving phase - using Fast Walsh Hadamard Tranform */
@@ -195,6 +206,22 @@ int main()
 
     printf("Time measured: %.3f seconds.\n", elapsed);
 
+    for (int i = 0; i < fwht_positions; ++i)
+    {
+        if (binary_solution[i] != original_binary_secret[zero_positions+i])
+        {
+            printf("Test Failed");
+            return 1;
+        }
+    }
+    for (int i = 0; i<bf_positions; i++)
+        if (bf_solution[i] != lwe.s[zero_positions+fwht_positions+i])
+        {
+            printf("Test Failed");
+            return 1;
+        }
+
+    printf("Test Passed");
 
     return 0;
 }

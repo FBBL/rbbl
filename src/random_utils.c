@@ -191,15 +191,15 @@ double randomUtilDouble(rand_ctx *ctx)
     return d;
 }
 
-long double randomUtilLongDouble(rand_ctx *ctx)
-{
-    long double d, maskValue = (long double)0x00FFFFFFFFFFFF;
-    u64 r = randomUtil64(ctx) & 0x00FFFFFFFFFFFF;
-    d = r / maskValue;
-    ASSERT(d >= 0.0, "Value too small!\n");
-    ASSERT(d <= 1.0, "Value too large!\n");
-    return d;
-}
+// long double randomUtilLongDouble(rand_ctx *ctx)
+// {
+//     long double d, maskValue = (long double)0x00FFFFFFFFFFFF;
+//     u64 r = randomUtil64(ctx) & 0x00FFFFFFFFFFFF;
+//     d = r / maskValue;
+//     ASSERT(d >= 0.0, "Value too small!\n");
+//     ASSERT(d <= 1.0, "Value too large!\n");
+//     return d;
+// }
 
 static void appendRandom(u64 *reg, u8 *rand, int len)
 {

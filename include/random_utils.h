@@ -32,7 +32,7 @@ u64 randomUtil64(rand_ctx *ctx);
 int randomUtilInt(rand_ctx *ctx, int n);
 // void randomUtilIntBufUnique(rand_ctx *ctx, int n, int *buf, int len);
 double randomUtilDouble(rand_ctx *ctx);
-long double randomUtilLongDouble(rand_ctx *ctx);
+// long double randomUtilLongDouble(rand_ctx *ctx);
 void randomUtilAppendRandomness(rand_ctx *ctx, u8 *randBuf, int len);
 
 #endif

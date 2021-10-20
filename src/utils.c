@@ -72,11 +72,12 @@ int get_seed()
     ASSERT(ret > 0, "could not read from /dev/urandom in get_seed");
     close(randomData);
 
-    return 0;
+    return seed;
 }
 
 /* return 1 if the given array is all zero */
-int checkzero(char *string, int length) {
+int checkzero(char *string, int length)
+{
     int is_zero;
     __asm__ (
         "cld\n"

@@ -53,7 +53,8 @@ int chi(double sigma, rand_ctx *rnd)
 }
 
 /* Initialize LWE struct, store secret (distributed as the noise) */
-void lwe_init(lweInstance *lwe, u16 n, u16 q, double alpha){
+void lwe_init(lweInstance *lwe, u16 n, u16 q, double alpha)
+{
 
     lwe->n = n;
     lwe->q = q;
@@ -67,7 +68,7 @@ void lwe_init(lweInstance *lwe, u16 n, u16 q, double alpha){
     for (u16 i = 0; i < n; i++)
         lwe->s[i] = (u16)(randomUtil64(&lwe->ctx));
 
-    unsigned int i, j;
+    unsigned int i;
 
     for (i = 0; i < n; i++)
     {
@@ -76,7 +77,8 @@ void lwe_init(lweInstance *lwe, u16 n, u16 q, double alpha){
 }
 
 /* Create and allocate n_samples in list */
-void create_lwe_samples(unsortedSamplesList *Samples, lweInstance *lwe, u64 n_samples){
+void create_lwe_samples(unsortedSamplesList *Samples, lweInstance *lwe, u64 n_samples)
+{
 
     u16 n = lwe->n;
     u16 q = lwe->q;
@@ -119,14 +121,15 @@ void create_lwe_samples(unsortedSamplesList *Samples, lweInstance *lwe, u64 n_sa
         error = (chi(lwe->sigma, &lwe->ctx) + q) % q;
         // z = a*s + e mod q
         Samples->z_list[i] = (Samples->z_list[i] + error) % q;
- #endif
+#endif
     }
 
 }
 
 
 /* allocate memory for sorted samples. n_samples is the nuber of total sampels in input before sorting/bkwstep */
-void allocate_unsorted_samples_list(unsortedSamplesList *Samples, lweInstance *lwe, u64 n_samples){
+void allocate_unsorted_samples_list(unsortedSamplesList *Samples, lweInstance *lwe, u64 n_samples)
+{
 
     Samples->n_samples = 0;
     Samples->a_list = malloc(n_samples*lwe->n * sizeof(u16));
@@ -144,7 +147,8 @@ void allocate_unsorted_samples_list(unsortedSamplesList *Samples, lweInstance *l
 
 
 /* free samples */
-void free_samples(unsortedSamplesList *Samples){
+void free_samples(unsortedSamplesList *Samples)
+{
 
     free(Samples->a_list);
     free(Samples->z_list);
@@ -155,7 +159,8 @@ void free_samples(unsortedSamplesList *Samples){
 }
 
 /* free sortedSamplesList */
-void free_sorted_samples(sortedSamplesList *Samples, u64 max_categories){
+void free_sorted_samples(sortedSamplesList *Samples, u64 max_categories)
+{
 
     free(Samples->a_list);
     free(Samples->z_list);
@@ -170,7 +175,8 @@ void free_sorted_samples(sortedSamplesList *Samples, u64 max_categories){
 
 }
 
-void clean_sorted_samples(sortedSamplesList *Samples){
+void clean_sorted_samples(sortedSamplesList *Samples)
+{
 
     memset(Samples->n_in_categories, 0, sizeof(u8)*Samples->n_categories);
 
@@ -198,7 +204,8 @@ u64 num_categories(lweInstance *lwe, bkwStepParameters *bkwStepPar)
     {
         numCategories = 1;
         int lastPosition = MIN(bkwStepPar->numPositions, bkwStepPar->numPositions + 1);
-        for (int i=0; i<lastPosition; i++){
+        for (int i=0; i<lastPosition; i++)
+        {
             numCategories *= c;
         }
         numCategories *= c1;
@@ -221,12 +228,13 @@ u64 num_categories(lweInstance *lwe, bkwStepParameters *bkwStepPar)
             numCategories *= c;
         numCategories *= c1;
     }
-    return numCategories; 
+    return numCategories;
 }
 
 
 /* allocate memory for sorted samples. n_samples is the nuber of total sampels in input before sorting/bkwstep */
-void allocate_sorted_samples_list(sortedSamplesList *Samples, lweInstance *lwe, bkwStepParameters *bkwStepPar, u64 n_samples, u64 max_categories){
+void allocate_sorted_samples_list(sortedSamplesList *Samples, lweInstance *lwe, bkwStepParameters *bkwStepPar, u64 n_samples, u64 max_categories)
+{
 
     // careful with the following setting... could be modified
     Samples->n_categories = num_categories(lwe, bkwStepPar);
@@ -248,7 +256,8 @@ void allocate_sorted_samples_list(sortedSamplesList *Samples, lweInstance *lwe, 
 }
 
 /* allocate memory for sorted samples. n_samples is the nuber of total sampels in input before sorting/bkwstep */
-void set_sorted_samples_list(sortedSamplesList *Samples, lweInstance *lwe, bkwStepParameters *bkwStepPar, u64 n_samples, u64 max_categories){
+void set_sorted_samples_list(sortedSamplesList *Samples, lweInstance *lwe, bkwStepParameters *bkwStepPar, u64 n_samples, u64 max_categories)
+{
 
     // careful with the following setting... could be modified
     Samples->n_categories = num_categories(lwe, bkwStepPar);

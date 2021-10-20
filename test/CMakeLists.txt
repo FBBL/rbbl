@@ -27,5 +27,3 @@ link_directories(${BINARY_DIR})
 my_add_test(20_005 "${TEST_DIR}/test20_005.c" m rbbl "Test Passed")
 # test22_005_bruteforce
 my_add_test(22_005_bruteforce "${TEST_DIR}/test22_005_bruteforce.c" m rbbl "Test Passed")
-# test40_005_bruteforce
-my_add_test(40_005_bruteforce "${TEST_DIR}/test40_005_bruteforce.c" m rbbl "Test Passed")

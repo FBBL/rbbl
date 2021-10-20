@@ -191,43 +191,4 @@ double randomUtilDouble(rand_ctx *ctx)
     return d;
 }
 
-// long double randomUtilLongDouble(rand_ctx *ctx)
-// {
-//     long double d, maskValue = (long double)0x00FFFFFFFFFFFF;
-//     u64 r = randomUtil64(ctx) & 0x00FFFFFFFFFFFF;
-//     d = r / maskValue;
-//     ASSERT(d >= 0.0, "Value too small!\n");
-//     ASSERT(d <= 1.0, "Value too large!\n");
-//     return d;
-// }
-
-static void appendRandom(u64 *reg, u8 *rand, int len)
-{
-    u8 *p = (u8*)reg;
-    if (len <= 0) return;
-    if (len > 8) len = 8;
-    while (len-- > 0) *p++ ^= *rand++;
-}
-
-void randomUtilAppendRandomness(rand_ctx *ctx, u8 *randBuf, int len)
-{
-    if (!ctx)
-    {
-        ctx = &state;
-    }
-    if (randBuf)
-    {
-        appendRandom(&ctx->A1, randBuf, len);
-        appendRandom(&ctx->A2, randBuf, len - 8);
-        appendRandom(&ctx->B1, randBuf, len - 16);
-        appendRandom(&ctx->B2, randBuf, len - 24);
-        appendRandom(&ctx->C1, randBuf, len - 32);
-        appendRandom(&ctx->C2, randBuf, len - 40);
-    }
-    else
-    {
-        randomUtilAppendBadRandom(ctx);
-    }
-}
-
 

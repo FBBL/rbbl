@@ -132,6 +132,8 @@ int main()
 
         ret = transition_bkw_step_smooth_lms(&lwe, &bkwStepPar[i+1], srcSamples, dstSamples);
 
+        // verify_samples(zero_positions, dstSamples, &lwe);
+
         if(i != numReductionSteps-2)
         {
             // clean past list
@@ -160,6 +162,8 @@ int main()
 
     allocate_unsorted_samples_list(&Samples, &lwe, samples_for_guessing); // actually one could have more or less samples
     ret = transition_bkw_step_final(&lwe, &bkwStepPar[i], srcSamples, &Samples, samples_for_guessing);
+
+    // verify_unsorted_samples(zero_positions, &Samples, &lwe);
 
     time_stamp("Number of samples: %d", Samples.n_samples);
 

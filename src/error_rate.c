@@ -84,58 +84,56 @@ int error_rate(int zero_positions, unsortedSamplesList *Samples, lweInstance *lw
 
 
 
-int verify_samples(int zero_positions, sortedSamplesList *Samples, lweInstance *lwe)
-{
+// void verify_samples(int zero_positions, sortedSamplesList *Samples, lweInstance *lwe)
+// {
 
-    int n = lwe->n;
-    int q = lwe->q;
+//     int n = lwe->n;
+//     int q = lwe->q;
 
-    for (int j = 0; j < Samples->n_categories; j++)
-    {
-        for (int i = 0; i < Samples->n_in_categories[j]; ++i)
-        {
-            int sum = 0;
-            for (int k = 0; k < n; ++k)
-            {
-                sum = (sum + Samples->a_list[SAMPLES_PER_CATEGORY*n*j + i*n + k]*lwe->s[k]) % q;
-            }
-            sum = (sum + Samples->e_list[SAMPLES_PER_CATEGORY*j +i]) % q;
-            if (sum != Samples->z_list[SAMPLES_PER_CATEGORY*j +i])
-            {
-                printf("ERROR in general sorted sample verification\n");
-                exit(0);
-            }
-        }
+//     for (int j = 0; j < Samples->n_categories; j++)
+//     {
+//         for (int i = 0; i < Samples->n_in_categories[j]; ++i)
+//         {
+//             int sum = 0;
+//             for (int k = 0; k < n; ++k)
+//             {
+//                 sum = (sum + Samples->a_list[SAMPLES_PER_CATEGORY*n*j + i*n + k]*lwe->s[k]) % q;
+//             }
+//             sum = (sum + Samples->e_list[SAMPLES_PER_CATEGORY*j +i]) % q;
+//             if (sum != Samples->z_list[SAMPLES_PER_CATEGORY*j +i])
+//             {
+//                 printf("ERROR in general sorted sample verification\n");
+//                 exit(0);
+//             }
+//         }
 
-    }
+//     }
 
-    return 0;
-
-}
+// }
 
 
-int verify_unsorted_samples(int zero_positions, unsortedSamplesList *Samples, lweInstance *lwe)
-{
+// void verify_unsorted_samples(int zero_positions, unsortedSamplesList *Samples, lweInstance *lwe)
+// {
 
-    int n = lwe->n;
-    int q = lwe->q;
+//     int n = lwe->n;
+//     int q = lwe->q;
 
-    for (int i = 0; i < Samples->n_samples; ++i)
-    {
-        int sum = 0;
-        for (int k = 0; k < n; ++k)
-        {
-            sum = (sum + Samples->a_list[i*n + k]*lwe->s[k]) % q;
-        }
-        sum = (sum + Samples->e_list[i]) % q;
-        if (sum != Samples->z_list[i])
-        {
-            printf("ERROR in general unsorted sample verification\n");
-            exit(0);
-        }
-    }
+//     for (int i = 0; i < Samples->n_samples; ++i)
+//     {
+//         int sum = 0;
+//         for (int k = 0; k < n; ++k)
+//         {
+//             sum = (sum + Samples->a_list[i*n + k]*lwe->s[k]) % q;
+//         }
+//         sum = (sum + Samples->e_list[i]) % q;
+//         if (sum != Samples->z_list[i])
+//         {
+//             printf("ERROR in general unsorted sample verification\n");
+//             exit(0);
+//         }
+//     }
 
-}
+// }
 
 
 

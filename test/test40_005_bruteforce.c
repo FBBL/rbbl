@@ -34,7 +34,7 @@
 
 int main()
 {
-    u64 n_samples = 18000000;
+    u64 n_samples = 20000000;
     u64 samples_for_guessing = 3000000;
 
     lweInstance lwe;
